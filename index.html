@@ -989,6 +989,13 @@
             <button class="close-btn" onclick="closeModal('menuModal')">×</button>
             <h3 class="modal-title">⚙️ תפריט</h3>
             <div class="cheat-row">
+                <strong>🔊 צלילים:</strong>
+                <div class="cheat-input-group" style="margin-top:8px;">
+                    <button id="btn-mute" class="cheat-btn" style="flex:1; background:var(--blue);"
+                        onclick="toggleMute(event)">🔊 צלילים פעילים</button>
+                </div>
+            </div>
+            <div class="cheat-row">
                 <strong>💾 שמירה וטעינה:</strong>
                 <div class="cheat-input-group" style="margin-top:8px;">
                     <button class="cheat-btn" style="flex:1; background:var(--green);" onclick="saveGame(event)">💾
@@ -1111,6 +1118,7 @@
         </div>
     </div>
 
+    <script src="sound.js"></script>
     <script src="game.js"></script>
     <script src="actions.js"></script>
     <script src="battle.js"></script>

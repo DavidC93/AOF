@@ -67,9 +67,9 @@ function bApplyHit(atk, tgt, hx, hy, dx, dy) {
     tgt.hp = bRound1(tgt.hp - d); tgt.hitFlashT = Math.max(tgt.hitFlashT, 0.10);
     bAddImpact(hx, hy); bAddFloater(tgt.x, tgt.y - tgt.r - 16, `-${d.toFixed(1)}`, "dmg");
     bKnockback(tgt, dx, dy, bRand(5, 9));
-    if (tgt.hp <= 0) { tgt.hp = 0; tgt.alive = false; }
+    if (tgt.hp <= 0) { tgt.hp = 0; tgt.alive = false; SFX.play('unitDeath'); }
 }
-function bApplyMiss(atk, tgt, mx, my) { bAddDust(mx, my); bAddFloater(tgt.x, tgt.y - tgt.r - 16, "פספוס", "miss") }
+function bApplyMiss(atk, tgt, mx, my) { bAddDust(mx, my); bAddFloater(tgt.x, tgt.y - tgt.r - 16, "פספוס", "miss"); SFX.play('miss'); }
 
 function bUpdate(dt) {
     if (bBattleOver) return;
@@ -97,10 +97,12 @@ function bUpdate(dt) {
                         x: u.x, y: u.y, sid: u.id, sType: u.typeKey, sTeam: u.team, tid: en.id, speed: 440, alive: true,
                         willHit: hit, aimX: hit ? null : en.x + bRand(-mo, mo), aimY: hit ? null : en.y + bRand(-mo, mo), angle: 0
                     });
+                    SFX.play('arrowShot');
                 } else {
                     const dx = en.x - u.x, dy = en.y - u.y, l = Math.hypot(dx, dy) || 1;
                     u.meleeAnimT = u.meleeAnimDur; u.lungeDx = dx / l; u.lungeDy = dy / l;
                     bAddSlash(en.x - (dx / l) * 8, en.y - (dy / l) * 8, dx, dy);
+                    SFX.play('meleeHit');
                     if (Math.random() <= u.acc) bApplyHit(u, en, en.x, en.y, dx, dy);
                     else bApplyMiss(u, en, en.x + bRand(-10, 10), en.y + bRand(-10, 10));
                 }
@@ -120,7 +122,7 @@ function bUpdate(dt) {
         const dx = tx - p.x, dy = ty - p.y, l = Math.hypot(dx, dy) || 1;
         p.angle = Math.atan2(dy, dx); p.x += (dx / l) * p.speed * dt; p.y += (dy / l) * p.speed * dt;
         if (Math.hypot(tx - p.x, ty - p.y) < 12) {
-            if (p.willHit && tgt && tgt.alive) bApplyHit(atk, tgt, tgt.x, tgt.y, dx, dy);
+            if (p.willHit && tgt && tgt.alive) { bApplyHit(atk, tgt, tgt.x, tgt.y, dx, dy); SFX.play('arrowHit'); }
             else { if (tgt) bApplyMiss(atk, tgt, tx, ty); else bAddDust(tx, ty); }
             p.alive = false;
         }
@@ -243,6 +245,7 @@ function startBattleSimulation() {
     const { p, e } = bAliveCounts();
     document.getElementById('battle-score').innerHTML = `<b>יחידות:</b> אני ${p} | אויב ${e}`;
 
+    SFX.play('warHorn');
     requestAnimationFrame(bLoop);
 }
 
@@ -271,27 +274,82 @@ function onBattleEnd() {
     const lostA = battlePlayerArmy.archers - surA;
     const totalLost = lostW + lostK + lostA;
 
-    if (bWon) {
-        title.innerText = "🏆 ניצחון!";
-        sub.innerText = "כבשת את האדמה החדשה!";
-        title.style.color = "var(--green)";
+    if (battleType === 'raid') {
+        // === RAID OUTCOMES ===
+        if (bWon) {
+            // Win raid: get random war items, 1 to raidEnemyCount
+            const lootTypes = ['swords', 'armors', 'shields', 'bows', 'horses'];
+            const lootNames = { swords: '🗡️ חרב', armors: '🦺 שריון', shields: '💠 מגן', bows: '🏹 קשת', horses: '🐎 סוס' };
+            let lootList = [];
+            const numLootTypes = Math.min(2 + Math.floor(Math.random() * 2), lootTypes.length); // 2-3 item types
+            const shuffled = [...lootTypes].sort(() => Math.random() - 0.5);
+            for (let i = 0; i < numLootTypes; i++) {
+                const type = shuffled[i];
+                const amt = Math.floor(Math.random() * raidEnemyCount) + 1;
+                resources[type] += amt;
+                lootList.push(`${amt} ${lootNames[type]}`);
+            }
+            title.innerText = "🛡️ הבסיס הוגן!";
+            sub.innerText = "הדפת את הפשיטה ושללת!";
+            title.style.color = "var(--green)";
+            stats.innerHTML = `
+                <div class="result-stat"><div class="result-stat-label">שרדו</div><div class="result-stat-value" style="color:var(--green)">${surW + surK + surA}</div></div>
+                <div class="result-stat"><div class="result-stat-label">נפלו</div><div class="result-stat-value" style="color:var(--red)">${totalLost}</div></div>
+                <div class="result-stat" style="grid-column:1/-1"><div class="result-stat-label">שלל מלחמה</div><div class="result-stat-value" style="color:var(--gold)">${lootList.join(' • ')}</div></div>
+            `;
+            SFX.play('victory');
+        } else {
+            // Lose raid: lose 3 random resources, 1 to 20% of stock each
+            const allRes = Object.keys(basicRes).concat(Object.keys(advRes));
+            const shuffledRes = [...allRes].sort(() => Math.random() - 0.5);
+            let losses = [];
+            const resNames = { ...basicRes, ...advRes };
+            for (let i = 0; i < 3 && i < shuffledRes.length; i++) {
+                const r = shuffledRes[i];
+                if (resources[r] > 0) {
+                    const maxLoss = Math.max(1, Math.floor(resources[r] * 0.2));
+                    const loss = Math.floor(Math.random() * maxLoss) + 1;
+                    const actualLoss = Math.min(loss, resources[r]);
+                    resources[r] -= actualLoss;
+                    losses.push(`${actualLoss} ${icons[r]} ${resNames[r]}`);
+                }
+            }
+            title.innerText = "💥 הבסיס נפל!";
+            sub.innerText = "האויבים בזזו את המשאבים שלך.";
+            title.style.color = "var(--red)";
+            stats.innerHTML = `
+                <div class="result-stat"><div class="result-stat-label">שרדו</div><div class="result-stat-value" style="color:var(--green)">${surW + surK + surA}</div></div>
+                <div class="result-stat"><div class="result-stat-label">נפלו</div><div class="result-stat-value" style="color:var(--red)">${totalLost}</div></div>
+                <div class="result-stat" style="grid-column:1/-1"><div class="result-stat-label">משאבים שנבזזו</div><div class="result-stat-value" style="color:var(--red)">${losses.length > 0 ? losses.join(' • ') : 'אין משאבים לאבד'}</div></div>
+            `;
+            SFX.play('defeat');
+        }
     } else {
-        title.innerText = "💀 תבוסה";
-        sub.innerText = "האויב ניצח. האדמה לא נכבשה.";
-        title.style.color = "var(--red)";
+        // === LAND DISCOVERY OUTCOMES ===
+        if (bWon) {
+            title.innerText = "🏆 ניצחון!";
+            sub.innerText = "כבשת את האדמה החדשה!";
+            title.style.color = "var(--green)";
+        } else {
+            title.innerText = "💀 תבוסה";
+            sub.innerText = "האויב ניצח. האדמה לא נכבשה.";
+            title.style.color = "var(--red)";
+        }
+
+        stats.innerHTML = `
+            <div class="result-stat"><div class="result-stat-label">שרדו</div><div class="result-stat-value" style="color:var(--green)">${surW + surK + surA}</div></div>
+            <div class="result-stat"><div class="result-stat-label">נפלו</div><div class="result-stat-value" style="color:var(--red)">${totalLost}</div></div>
+            <div class="result-stat"><div class="result-stat-label">לוחמים ששרדו</div><div class="result-stat-value">⚔️ ${surW}</div></div>
+            <div class="result-stat"><div class="result-stat-label">אבירים ששרדו</div><div class="result-stat-value">🏇 ${surK}</div></div>
+            <div class="result-stat"><div class="result-stat-label">קשתים ששרדו</div><div class="result-stat-value">🎯 ${surA}</div></div>
+            <div class="result-stat"><div class="result-stat-label">תוצאה</div><div class="result-stat-value">${bWon ? '✅ ניצחון' : '❌ תבוסה'}</div></div>
+        `;
+
+        if (bWon) { addEmptyTile(); SFX.play('victory'); }
+        else SFX.play('defeat');
     }
 
-    stats.innerHTML = `
-        <div class="result-stat"><div class="result-stat-label">שרדו</div><div class="result-stat-value" style="color:var(--green)">${surW + surK + surA}</div></div>
-        <div class="result-stat"><div class="result-stat-label">נפלו</div><div class="result-stat-value" style="color:var(--red)">${totalLost}</div></div>
-        <div class="result-stat"><div class="result-stat-label">לוחמים ששרדו</div><div class="result-stat-value">⚔️ ${surW}</div></div>
-        <div class="result-stat"><div class="result-stat-label">אבירים ששרדו</div><div class="result-stat-value">🏇 ${surK}</div></div>
-        <div class="result-stat"><div class="result-stat-label">קשתים ששרדו</div><div class="result-stat-value">🎯 ${surA}</div></div>
-        <div class="result-stat"><div class="result-stat-label">תוצאה</div><div class="result-stat-value">${bWon ? '✅ ניצחון' : '❌ תבוסה'}</div></div>
-    `;
-
     rm.style.display = 'flex';
-    if (bWon) addEmptyTile();
     updateUI();
 }
 
@@ -312,6 +370,7 @@ document.getElementById('btn-battle-pause').addEventListener('click', () => {
 document.getElementById('btn-battle-retreat').addEventListener('click', () => {
     if (!bRunning || bBattleOver) return;
     bBattleOver = true; bRunning = false; bWon = false;
+    SFX.play('retreat');
     // Return half of surviving soldiers on retreat
     let surW = 0, surK = 0, surA = 0;
     for (const u of bUnits) {

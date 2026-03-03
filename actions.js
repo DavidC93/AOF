@@ -35,7 +35,7 @@ function stopAutoRoll() { clearInterval(autoRollTimer); autoRollTimer = null; }
 
 function rollDice() {
     const display = document.getElementById('dice-result'), log = document.getElementById('action-log');
-    btnRoll.disabled = true; display.classList.add('rolling'); log.innerText = "זורק...";
+    btnRoll.disabled = true; display.classList.add('rolling'); log.innerText = "זורק..."; SFX.play('dice');
     setTimeout(() => {
         display.classList.remove('rolling');
         let sum;
@@ -44,15 +44,17 @@ function rollDice() {
         display.innerText = `🎲 ${sum}`;
         if (sum === 2) {
             let space = resources.maxPop - getPopulation();
-            if (space > 0) { let r = Math.min(townHallLevel, space); resources.people += r; log.innerText = `יצא 2! העירייה גייסה ${r} 👨.`; }
+            if (space > 0) { let r = Math.min(townHallLevel, space); resources.people += r; log.innerText = `יצא 2! העירייה גייסה ${r} 👨.`; SFX.play('collect'); }
             else log.innerText = `יצא 2! האוכלוסייה מלאה (מקס ${resources.maxPop}).`;
-        } else if (sum === 3) { resources.research += libraryLevel; log.innerText = `יצא 3! הספרייה ייצרה ${libraryLevel} 🧪.`; }
+        } else if (sum === 3) { resources.research += libraryLevel; log.innerText = `יצא 3! הספרייה ייצרה ${libraryLevel} 🧪.`; SFX.play('collect'); }
         else if (sum === 10) { handleRoll10(log); }
+        else if (sum === 11) { handleRoll11(log); }
         else if (sum === 12) { log.innerText = `יצא 12! מצאת תיבת אוצר!`; isPausedForEvent = true; openModal('chestModal'); }
         else {
             let produced = [];
             tiles.forEach(t => { if (t.type !== 'empty' && t.number === sum) { resources[t.type] += t.level; produced.push(`${t.level} ${icons[t.type]}`); } });
-            log.innerText = produced.length > 0 ? `הופקו: ${produced.join(', ')}` : "לא הופקו משאבים הפעם.";
+            if (produced.length > 0) { log.innerText = `הופקו: ${produced.join(', ')}`; SFX.play('collect'); }
+            else log.innerText = "לא הופקו משאבים הפעם.";
         }
         btnRoll.disabled = false; updateUI();
     }, 300);
@@ -61,23 +63,23 @@ function rollDice() {
 // Building upgrades
 function upgradeTownHall(event) {
     vibe(); const cost = townHallLevel; let m = [];
-    if (resources.plank < cost) m.push(`${cost - resources.plank} 🪵`);
-    if (resources.brick < cost) m.push(`${cost - resources.brick} 🧱`);
-    if (resources.bread < cost) m.push(`${cost - resources.bread} 🍞`);
-    if (resources.cloth < cost) m.push(`${cost - resources.cloth} 🧵`);
-    if (resources.steel < cost) m.push(`${cost - resources.steel} ⚙️`);
-    if (m.length === 0) { resources.plank -= cost; resources.brick -= cost; resources.bread -= cost; resources.cloth -= cost; resources.steel -= cost; townHallLevel++; resources.maxPop += 3; showFeedback(event, `עירייה רמה ${townHallLevel}!`); updateUI(); }
-    else alert(`חסרים משאבים!\nחסר לך:\n` + m.join('\n'));
+    if (resources.plank < cost) m.push(`${cost - resources.plank} 🪵 קרשים`);
+    if (resources.brick < cost) m.push(`${cost - resources.brick} 🧱 לבנים`);
+    if (resources.bread < cost) m.push(`${cost - resources.bread} 🍞 לחם`);
+    if (resources.cloth < cost) m.push(`${cost - resources.cloth} 🧵 בד`);
+    if (resources.steel < cost) m.push(`${cost - resources.steel} ⚙️ פלדה`);
+    if (m.length === 0) { resources.plank -= cost; resources.brick -= cost; resources.bread -= cost; resources.cloth -= cost; resources.steel -= cost; townHallLevel++; resources.maxPop += 3; showFeedback(event, `עירייה רמה ${townHallLevel}!`); SFX.play('upgrade'); updateUI(); }
+    else { SFX.play('error'); alert(`חסרים משאבים!\nחסר לך:\n` + m.join('\n')); }
 }
 
 function upgradeLibrary(event) {
     vibe(); const cP = 2 * libraryLevel, cB = 2 * libraryLevel, cS = 2 * libraryLevel, cR = 4 * libraryLevel; let m = [];
-    if (resources.plank < cP) m.push(`${cP - resources.plank} 🪵`);
-    if (resources.brick < cB) m.push(`${cB - resources.brick} 🧱`);
-    if (resources.steel < cS) m.push(`${cS - resources.steel} ⚙️`);
-    if (resources.research < cR) m.push(`${cR - resources.research} 🧪`);
-    if (m.length === 0) { resources.plank -= cP; resources.brick -= cB; resources.steel -= cS; resources.research -= cR; libraryLevel++; showFeedback(event, `ספרייה רמה ${libraryLevel}!`); updateUI(); }
-    else alert(`חסרים משאבים!\nחסר לך:\n` + m.join('\n'));
+    if (resources.plank < cP) m.push(`${cP - resources.plank} 🪵 קרשים`);
+    if (resources.brick < cB) m.push(`${cB - resources.brick} 🧱 לבנים`);
+    if (resources.steel < cS) m.push(`${cS - resources.steel} ⚙️ פלדה`);
+    if (resources.research < cR) m.push(`${cR - resources.research} 🧪 מחקר`);
+    if (m.length === 0) { resources.plank -= cP; resources.brick -= cB; resources.steel -= cS; resources.research -= cR; libraryLevel++; showFeedback(event, `ספרייה רמה ${libraryLevel}!`); SFX.play('upgrade'); updateUI(); }
+    else { SFX.play('error'); alert(`חסרים משאבים!\nחסר לך:\n` + m.join('\n')); }
 }
 
 // Market
@@ -88,45 +90,93 @@ function createMarketRow(resId, resName, priceData) {
 
 function tradeMarket(action, resId, amount, event) {
     vibe();
-    if (action === 'sell') { if (resources[resId] > 0) { resources[resId]--; resources.coins += amount; showFeedback(event, `+${amount}🪙`); } else alert(`חסר ${icons[resId]} למכירה.`); }
-    else { if (resources.coins >= amount) { resources.coins -= amount; resources[resId]++; showFeedback(event, `+1 ${icons[resId]}`); } else alert(`חסרים ${amount - resources.coins} 🪙.`); }
+    if (action === 'sell') { if (resources[resId] > 0) { resources[resId]--; resources.coins += amount; showFeedback(event, `+${amount}🪙`); SFX.play('coins'); } else { SFX.play('error'); alert(`חסר ${icons[resId]} למכירה.`); } }
+    else { if (resources.coins >= amount) { resources.coins -= amount; resources[resId]++; showFeedback(event, `+1 ${icons[resId]}`); SFX.play('coins'); } else { SFX.play('error'); alert(`חסרים ${amount - resources.coins} 🪙.`); } }
     updateUI();
 }
 
 // Crafting
 function craft(advType, mode, event) {
     vibe(); const bType = craftMap[advType], avail = resources[bType], max = Math.floor(avail / 3);
-    if (max > 0) { let amt = mode === 'max' ? max : 1; resources[bType] -= amt * 3; resources[advType] += amt; showFeedback(event, `+${amt} ${icons[advType]}`); updateUI(); }
-    else alert(`חסרים ${3 - avail} ${icons[bType]}.`);
+    if (max > 0) { let amt = mode === 'max' ? max : 1; resources[bType] -= amt * 3; resources[advType] += amt; showFeedback(event, `+${amt} ${icons[advType]}`); SFX.play('craft'); updateUI(); }
+    else { SFX.play('error'); alert(`חסרים ${3 - avail} ${icons[bType]} ${basicRes[bType]}.`); }
 }
+
+const MAX_SOLDIERS = 10;
+function getTotalSoldiers() { return resources.archers + resources.warriors + resources.knights; }
 
 function craftMilitary(type, event) {
     vibe(); let m = [];
-    if (type === 'swords') { if (resources.steel < 2) m.push('2 ⚙️'); if (!m.length) { resources.steel -= 2; resources.swords++; showFeedback(event, '+1 🗡️'); } }
-    else if (type === 'armors') { if (resources.steel < 2) m.push('2 ⚙️'); if (!m.length) { resources.steel -= 2; resources.armors++; showFeedback(event, '+1 🦺'); } }
-    else if (type === 'shields') { if (resources.steel < 4) m.push('4 ⚙️'); if (!m.length) { resources.steel -= 4; resources.shields++; showFeedback(event, '+1 💠'); } }
-    else if (type === 'bows') { if (resources.plank < 3) m.push('3 🪵'); if (!m.length) { resources.plank -= 3; resources.bows++; showFeedback(event, '+1 🏹'); } }
-    else if (type === 'horses') { if (resources.bread < 5) m.push('5 🍞'); if (!m.length) { resources.bread -= 5; resources.horses++; showFeedback(event, '+1 🐎'); } }
-    else if (type === 'archers') { if (resources.people < 1) m.push('1 👨'); if (resources.bows < 1) m.push('1 🏹'); if (!m.length) { resources.people--; resources.bows--; resources.archers++; showFeedback(event, '+1 🎯'); } }
-    else if (type === 'warriors') { if (resources.people < 1) m.push('1 👨'); if (resources.swords < 1) m.push('1 🗡️'); if (resources.armors < 1) m.push('1 🦺'); if (!m.length) { resources.people--; resources.swords--; resources.armors--; resources.warriors++; showFeedback(event, '+1 ⚔️'); } }
-    else if (type === 'knights') { if (resources.people < 1) m.push('1 👨'); if (resources.swords < 1) m.push('1 🗡️'); if (resources.armors < 1) m.push('1 🦺'); if (resources.shields < 1) m.push('1 💠'); if (resources.horses < 1) m.push('1 🐎'); if (!m.length) { resources.people--; resources.swords--; resources.armors--; resources.shields--; resources.horses--; resources.knights++; showFeedback(event, '+1 🏇'); } }
-    if (m.length > 0) alert("חסרים:\n" + m.join('\n')); else updateUI();
+    // Equipment crafting (no soldier cap)
+    if (type === 'swords') { if (resources.steel < 2) m.push(`${2 - resources.steel} ⚙️ פלדה`); if (!m.length) { resources.steel -= 2; resources.swords++; showFeedback(event, '+1 🗡️'); } }
+    else if (type === 'armors') { if (resources.steel < 2) m.push(`${2 - resources.steel} ⚙️ פלדה`); if (!m.length) { resources.steel -= 2; resources.armors++; showFeedback(event, '+1 🦺'); } }
+    else if (type === 'shields') { if (resources.steel < 4) m.push(`${4 - resources.steel} ⚙️ פלדה`); if (!m.length) { resources.steel -= 4; resources.shields++; showFeedback(event, '+1 💠'); } }
+    else if (type === 'bows') { if (resources.plank < 3) m.push(`${3 - resources.plank} 🪵 קרשים`); if (!m.length) { resources.plank -= 3; resources.bows++; showFeedback(event, '+1 🏹'); } }
+    else if (type === 'horses') { if (resources.bread < 5) m.push(`${5 - resources.bread} 🍞 לחם`); if (!m.length) { resources.bread -= 5; resources.horses++; showFeedback(event, '+1 🐎'); } }
+    // Soldier training (capped at MAX_SOLDIERS)
+    else if (type === 'archers') {
+        if (getTotalSoldiers() >= MAX_SOLDIERS) { alert(`מקסימום ${MAX_SOLDIERS} חיילים!`); return; }
+        if (resources.people < 1) m.push('1 👨 אדם'); if (resources.bows < 1) m.push('1 🏹 קשת');
+        if (!m.length) { resources.people--; resources.bows--; resources.archers++; showFeedback(event, '+1 🎯'); }
+    }
+    else if (type === 'warriors') {
+        if (getTotalSoldiers() >= MAX_SOLDIERS) { alert(`מקסימום ${MAX_SOLDIERS} חיילים!`); return; }
+        if (resources.people < 1) m.push('1 👨 אדם'); if (resources.swords < 1) m.push('1 🗡️ חרב'); if (resources.armors < 1) m.push('1 🦺 שריון');
+        if (!m.length) { resources.people--; resources.swords--; resources.armors--; resources.warriors++; showFeedback(event, '+1 ⚔️'); }
+    }
+    else if (type === 'knights') {
+        if (getTotalSoldiers() >= MAX_SOLDIERS) { alert(`מקסימום ${MAX_SOLDIERS} חיילים!`); return; }
+        if (resources.people < 1) m.push('1 👨 אדם'); if (resources.swords < 1) m.push('1 🗡️ חרב'); if (resources.armors < 1) m.push('1 🦺 שריון'); if (resources.shields < 1) m.push('1 💠 מגן'); if (resources.horses < 1) m.push('1 🐎 סוס');
+        if (!m.length) { resources.people--; resources.swords--; resources.armors--; resources.shields--; resources.horses--; resources.knights++; showFeedback(event, '+1 🏇'); }
+    }
+    if (m.length > 0) { SFX.play('error'); alert("חסרים משאבים:\n" + m.join('\n')); } else { SFX.play(type === 'swords' || type === 'armors' || type === 'shields' || type === 'bows' || type === 'horses' ? 'craft' : 'train'); updateUI(); }
+}
+
+// Disassemble soldiers to recover components
+function disassembleSoldier(type, event) {
+    vibe();
+    if (type === 'archers' && resources.archers > 0) { resources.archers--; resources.people++; resources.bows++; showFeedback(event, '🎯→👨+🏹'); SFX.play('disassemble'); }
+    else if (type === 'warriors' && resources.warriors > 0) { resources.warriors--; resources.people++; resources.swords++; resources.armors++; showFeedback(event, '⚔️→👨+🗡️+🦺'); SFX.play('disassemble'); }
+    else if (type === 'knights' && resources.knights > 0) { resources.knights--; resources.people++; resources.swords++; resources.armors++; resources.shields++; resources.horses++; showFeedback(event, '🏇→👨+🗡️+🦺+💠+🐎'); SFX.play('disassemble'); }
+    else { SFX.play('error'); alert('אין יחידה לפירוק!'); return; }
+    updateUI();
 }
 
 // Tiles
 function setTileType(i, bType, event) { vibe(); tiles[i].type = bType; showFeedback(event, "נבחר!"); updateUI(); }
 function upgradeTile(i, event) {
     vibe(); const t = tiles[i], cP = t.level, cS = Math.max(0, t.level - 1); let m = [];
-    if (resources.plank < cP) m.push(`${cP - resources.plank} 🪵`);
-    if (resources.steel < cS) m.push(`${cS - resources.steel} ⚙️`);
-    if (!m.length) { resources.steel -= cS; resources.plank -= cP; t.level++; showFeedback(event, `רמה ${t.level}!`); updateUI(); }
-    else alert("חסרים:\n" + m.join('\n'));
+    if (resources.plank < cP) m.push(`${cP - resources.plank} 🪵 קרשים`);
+    if (resources.steel < cS) m.push(`${cS - resources.steel} ⚙️ פלדה`);
+    if (!m.length) { resources.steel -= cS; resources.plank -= cP; t.level++; showFeedback(event, `רמה ${t.level}!`); SFX.play('upgrade'); updateUI(); }
+    else { SFX.play('error'); alert("חסרים משאבים:\n" + m.join('\n')); }
 }
 
-// Roll 10 handler
+// Roll 10 handler - always enemies (land discovery)
 function handleRoll10(log) {
-    if (Math.random() < 0.3) { log.innerText = "10! מצאת אדמה ריקה! 🎉"; addEmptyTile(); }
-    else { log.innerText = "10! התגלו אויבים..."; isPausedForEvent = true; initiateCombat(); }
+    log.innerText = "10! התגלו אויבים...";
+    isPausedForEvent = true;
+    initiateCombat();
+}
+
+// Roll 11 handler - base raid
+function handleRoll11(log) {
+    log.innerText = "11! פשיטה על הבסיס! ⚔️";
+    isPausedForEvent = true;
+    initiateRaid();
+}
+
+// Shared enemy generation
+function generateEnemyArmy() {
+    const maxEnemies = Math.min(Math.max(1, discoveredTilesCount), 10);
+    const totalEnemies = Math.floor(Math.random() * maxEnemies) + 1;
+    const types = ['warriors', 'knights', 'archers'];
+    const army = { warriors: 0, knights: 0, archers: 0 };
+    for (let i = 0; i < totalEnemies; i++) {
+        army[types[Math.floor(Math.random() * types.length)]]++;
+    }
+    if (army.warriors + army.knights + army.archers === 0) army.warriors = 1;
+    return { army, total: totalEnemies };
 }
 
 function addEmptyTile() {
@@ -151,10 +201,11 @@ function openChest() {
     const anim = document.getElementById('chest-animation'); let ticks = 0;
     const final = Math.floor(Math.random() * 91) + 10;
     const iv = setInterval(() => {
-        anim.innerText = (Math.floor(Math.random() * 100) + 10) + "🪙"; ticks++;
+        anim.innerText = (Math.floor(Math.random() * 100) + 10) + "🪙"; ticks++; SFX.play('chest');
         if (ticks > 20) {
             clearInterval(iv); anim.innerText = final + "🪙"; anim.classList.add('chest-success'); resources.coins += final;
-            document.getElementById('action-log').innerText = `פתחת תיבה וקיבלת ${final}🪙!`; document.getElementById('btn-close-chest').style.display = 'inline-block'; updateUI();
+            document.getElementById('action-log').innerText = `פתחת תיבה וקיבלת ${final}🪙!`; document.getElementById('btn-close-chest').style.display = 'inline-block';
+            SFX.play('chestOpen'); updateUI();
         }
     }, 50);
 }
@@ -164,18 +215,16 @@ function closeChest() {
     const a = document.getElementById('chest-animation'); a.innerText = '❓🪙'; a.classList.remove('chest-success');
 }
 
-// Combat initiation
+// Combat initiation - land discovery
 function initiateCombat() {
-    const baseW = 1 + Math.floor(discoveredTilesCount * 0.8);
-    const baseK = Math.floor(discoveredTilesCount * 0.3);
-    const baseA = Math.floor(discoveredTilesCount * 0.5);
-    pendingEnemyArmy = {
-        warriors: Math.max(1, baseW + Math.floor(Math.random() * 3)),
-        knights: Math.max(0, baseK + Math.floor(Math.random() * 2)),
-        archers: Math.max(0, baseA + Math.floor(Math.random() * 2))
-    };
+    battleType = 'land';
+    const { army } = generateEnemyArmy();
+    pendingEnemyArmy = army;
+
     const pInfo = document.getElementById('combat-player-info');
     const eInfo = document.getElementById('combat-enemy-info');
+    document.querySelector('#combatModal .modal-title').innerText = '⚔️ אויבים לפניך!';
+    document.querySelector('#combatModal .modal-content p').innerText = 'מצאת אדמה חדשה, אך היא מוחזקת על ידי אויבים!';
     pInfo.innerHTML = `⚔️ ${resources.warriors} לוחמים<br>🏇 ${resources.knights} אבירים<br>🎯 ${resources.archers} קשתים<br><strong>כוח: ${getPlayerPower()}</strong>`;
     const ePower = pendingEnemyArmy.warriors * 2 + pendingEnemyArmy.knights * 3 + pendingEnemyArmy.archers * 1;
     eInfo.innerHTML = `⚔️ ${pendingEnemyArmy.warriors} לוחמים<br>🏇 ${pendingEnemyArmy.knights} אבירים<br>🎯 ${pendingEnemyArmy.archers} קשתים<br><strong>כוח: ${ePower}</strong>`;
@@ -185,15 +234,67 @@ function initiateCombat() {
     openModal('combatModal');
 }
 
-function retreat() { vibe(); document.getElementById('action-log').innerText = "נסגת מהקרב."; closeModal('combatModal'); isPausedForEvent = false; updateUI(); }
+// Raid initiation - enemy attacks base
+function initiateRaid() {
+    battleType = 'raid';
+    const { army, total } = generateEnemyArmy();
+    pendingEnemyArmy = army;
+    raidEnemyCount = total;
+
+    const pInfo = document.getElementById('combat-player-info');
+    const eInfo = document.getElementById('combat-enemy-info');
+    document.querySelector('#combatModal .modal-title').innerText = '🚨 פשיטה על הבסיס!';
+    document.querySelector('#combatModal .modal-content p').innerText = 'אויבים תוקפים את הבסיס שלך! הגן את המשאבים!';
+    pInfo.innerHTML = `⚔️ ${resources.warriors} לוחמים<br>🏇 ${resources.knights} אבירים<br>🎯 ${resources.archers} קשתים<br><strong>כוח: ${getPlayerPower()}</strong>`;
+    const ePower = pendingEnemyArmy.warriors * 2 + pendingEnemyArmy.knights * 3 + pendingEnemyArmy.archers * 1;
+    eInfo.innerHTML = `⚔️ ${pendingEnemyArmy.warriors} לוחמים<br>🏇 ${pendingEnemyArmy.knights} אבירים<br>🎯 ${pendingEnemyArmy.archers} קשתים<br><strong>כוח: ${ePower}</strong>`;
+    const atkBtn = document.getElementById('btn-combat-attack');
+    if (getPlayerPower() === 0) { atkBtn.disabled = true; atkBtn.innerText = "אמן חיילים!"; atkBtn.style.background = 'rgba(255,255,255,0.1)'; }
+    else { atkBtn.disabled = false; atkBtn.innerText = "הגן!"; atkBtn.style.background = ''; }
+    openModal('combatModal');
+}
+
+function retreat() {
+    vibe(); SFX.play('retreat');
+    if (battleType === 'raid') {
+        // Retreating from raid = resources get plundered (same as losing)
+        const allRes = Object.keys(basicRes).concat(Object.keys(advRes));
+        const shuffledRes = [...allRes].sort(() => Math.random() - 0.5);
+        let losses = [];
+        const resNames = { ...basicRes, ...advRes };
+        for (let i = 0; i < 3 && i < shuffledRes.length; i++) {
+            const r = shuffledRes[i];
+            if (resources[r] > 0) {
+                const maxLoss = Math.max(1, Math.floor(resources[r] * 0.2));
+                const loss = Math.floor(Math.random() * maxLoss) + 1;
+                const actualLoss = Math.min(loss, resources[r]);
+                resources[r] -= actualLoss;
+                losses.push(`${actualLoss} ${icons[r]} ${resNames[r]}`);
+            }
+        }
+        document.getElementById('action-log').innerText = `נסגת מהפשיטה. משאבים נבזזו: ${losses.join(', ')}`;
+    } else {
+        document.getElementById('action-log').innerText = "נסגת מהקרב.";
+    }
+    closeModal('combatModal'); isPausedForEvent = false; updateUI();
+}
 
 // Cheats
 function setNextRoll(event) { vibe(); const v = parseInt(document.getElementById('cheat-dice-val').value); if (v >= 2 && v <= 12) { forcedNextRoll = v; isRollLocked = document.getElementById('cheat-roll-persist').checked; showFeedback(event, "✅ נקבע!"); setTimeout(() => closeModal('menuModal'), 500); } else alert("מספר 2-12."); }
 function clearForcedRoll(event) { vibe(); forcedNextRoll = null; isRollLocked = false; document.getElementById('cheat-roll-persist').checked = false; showFeedback(event, "✅ בוטל!"); setTimeout(() => closeModal('menuModal'), 500); }
 function addCheatCoins(event) { vibe(); const v = parseInt(document.getElementById('cheat-coins-val').value) || 1000; resources.coins += v; showFeedback(event, `+${v}🪙`); updateUI(); }
 function cheatAddLand(event) { vibe(); showFeedback(event, "🌍 שטח!"); addEmptyTile(); setTimeout(() => closeModal('menuModal'), 500); }
-function openModal(id) { vibe(); document.getElementById(id).style.display = 'flex'; updateUI(); }
-function closeModal(id) { vibe(); document.getElementById(id).style.display = 'none'; }
+function openModal(id) { vibe(); SFX.play('click'); document.getElementById(id).style.display = 'flex'; updateUI(); }
+function closeModal(id) { vibe(); SFX.play('click'); document.getElementById(id).style.display = 'none'; }
+
+// Mute toggle
+function toggleMute(event) {
+    vibe(); const muted = SFX.toggleMute();
+    document.getElementById('btn-mute').innerText = muted ? '🔇 צלילים כבויים' : '🔊 צלילים פעילים';
+    document.getElementById('btn-mute').style.background = muted ? 'var(--muted)' : 'var(--blue)';
+    showFeedback(event, muted ? '🔇' : '🔊');
+    if (!muted) SFX.play('click');
+}
 
 // Save/Load
 function autoSave() {
@@ -216,3 +317,8 @@ function resetGame(event) {
 // Init
 loadGame();
 updateUI();
+// Init mute button state
+if (SFX.isMuted()) {
+    document.getElementById('btn-mute').innerText = '🔇 צלילים כבויים';
+    document.getElementById('btn-mute').style.background = 'var(--muted)';
+}

@@ -2,7 +2,7 @@
 
 const basicRes = { wood: 'עץ', clay: 'חימר', wheat: 'חיטה', wool: 'צמר', ore: 'עפרה' };
 const advRes = { plank: 'קרש', brick: 'לבנה', bread: 'לחם', cloth: 'בד', steel: 'פלדה' };
-const icons = { wood:'🌲', clay:'🟤', wheat:'🌾', wool:'🐑', ore:'⛰️', plank:'🪵', brick:'🧱', bread:'🍞', cloth:'🧵', steel:'⚙️', empty:'🏳️' };
+const icons = { wood: '🌲', clay: '🟤', wheat: '🌾', wool: '🐑', ore: '⛰️', plank: '🪵', brick: '🧱', bread: '🍞', cloth: '🧵', steel: '⚙️', empty: '🏳️' };
 const craftMap = { plank: 'wood', brick: 'clay', bread: 'wheat', cloth: 'wool', steel: 'ore' };
 const validTileNumbers = [4, 5, 6, 7, 8, 9];
 const prices = { basic: { sell: 1, buy: 2 }, adv: { sell: 3, buy: 6 } };
@@ -29,6 +29,8 @@ let tiles = [
 // Enemy army for battle
 let pendingEnemyArmy = { warriors: 0, knights: 0, archers: 0 };
 let battlePlayerArmy = { warriors: 0, knights: 0, archers: 0 };
+let battleType = 'land'; // 'land' = discover land, 'raid' = enemy base raid
+let raidEnemyCount = 0; // total enemies in current raid (for loot calculation)
 
 function vibe() { if (navigator.vibrate) navigator.vibrate(15); }
 
@@ -90,8 +92,8 @@ function updateUI() {
     const craftGrid = document.getElementById('crafting-grid');
     craftGrid.innerHTML = '';
     for (let adv in advRes) {
-        const basic = craftMap[adv], can = resources[basic] >= 3;
-        craftGrid.innerHTML += `<div class="craft-card"><div style="font-size:24px">${icons[adv]}</div><div style="font-size:13px;font-weight:bold;color:var(--text)">${advRes[adv]}</div><div style="font-size:11px;color:var(--muted)">(<span class="${can ? '' : 'missing-res'}">3</span> ${icons[basic]})</div><div class="craft-actions"><button class="craft-btn ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','single',event)">צור 1</button><button class="craft-btn btn-max ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','max',event)">הכל</button></div></div>`;
+        const basic = craftMap[adv], have = resources[basic], need = 3, deficit = Math.max(0, need - have), can = have >= need;
+        craftGrid.innerHTML += `<div class="craft-card"><div style="font-size:24px">${icons[adv]}</div><div style="font-size:13px;font-weight:bold;color:var(--text)">${advRes[adv]}</div><div style="font-size:11px;color:var(--muted)">(<span class="${can ? '' : 'missing-res'}">${need}</span> ${icons[basic]} ${basicRes[basic]})</div><div class="craft-actions"><button class="craft-btn ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','single',event)">צור 1</button><button class="craft-btn btn-max ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','max',event)">הכל</button></div></div>`;
     }
 
     // Military grid
@@ -100,18 +102,23 @@ function updateUI() {
     const cAr = resources.people >= 1 && resources.bows >= 1;
     const cW = resources.people >= 1 && resources.swords >= 1 && resources.armors >= 1;
     const cK = resources.people >= 1 && resources.swords >= 1 && resources.armors >= 1 && resources.shields >= 1 && resources.horses >= 1;
+    const totalSoldiers = resources.archers + resources.warriors + resources.knights;
+    const maxSol = 10;
+    const soldierCapFull = totalSoldiers >= maxSol;
     mg.innerHTML = `
-        <div class="craft-card"><div style="font-size:24px">🗡️</div><div style="color:var(--text)"><strong>חרב</strong></div><div style="font-size:11px;color:var(--muted)">(<span class="${cs?'':'missing-res'}">2</span> ⚙️)</div><div class="craft-actions"><button class="craft-btn ${cs?'':'disabled-btn'}" onclick="craftMilitary('swords',event)">חשל</button></div></div>
-        <div class="craft-card"><div style="font-size:24px">🦺</div><div style="color:var(--text)"><strong>שריון</strong></div><div style="font-size:11px;color:var(--muted)">(<span class="${ca?'':'missing-res'}">2</span> ⚙️)</div><div class="craft-actions"><button class="craft-btn ${ca?'':'disabled-btn'}" onclick="craftMilitary('armors',event)">צור</button></div></div>
-        <div class="craft-card"><div style="font-size:24px">💠</div><div style="color:var(--text)"><strong>מגן</strong></div><div style="font-size:11px;color:var(--muted)">(<span class="${csh?'':'missing-res'}">4</span> ⚙️)</div><div class="craft-actions"><button class="craft-btn ${csh?'':'disabled-btn'}" onclick="craftMilitary('shields',event)">צור</button></div></div>
-        <div class="craft-card"><div style="font-size:24px">🏹</div><div style="color:var(--text)"><strong>קשת (נשק)</strong></div><div style="font-size:11px;color:var(--muted)">(<span class="${cb?'':'missing-res'}">3</span> 🪵)</div><div class="craft-actions"><button class="craft-btn ${cb?'':'disabled-btn'}" onclick="craftMilitary('bows',event)">צור</button></div></div>
-        <div class="craft-card" style="grid-column:1/-1"><div style="font-size:24px">🐎</div><div style="color:var(--text)"><strong>סוס</strong></div><div style="font-size:11px;color:var(--muted)">(<span class="${ch?'':'missing-res'}">5</span> 🍞)</div><div class="craft-actions"><button class="craft-btn ${ch?'':'disabled-btn'}" onclick="craftMilitary('horses',event)">אמן</button></div></div>
-        <div class="craft-card" style="background:rgba(64,192,112,0.08);border-color:rgba(64,192,112,0.3)"><div style="font-size:24px">🎯</div><div style="color:var(--text)"><strong>קשת</strong> (כוח 1)</div><div style="font-size:11px;color:var(--muted)">(<span class="${resources.people>=1?'':'missing-res'}">1</span>👨, <span class="${resources.bows>=1?'':'missing-res'}">1</span>🏹)</div><div class="craft-actions"><button class="craft-btn btn-soldier ${cAr?'':'disabled-btn'}" onclick="craftMilitary('archers',event)">אמן קשת</button></div></div>
-        <div class="craft-card" style="background:rgba(224,80,80,0.08);border-color:rgba(224,80,80,0.3)"><div style="font-size:24px">⚔️</div><div style="color:var(--text)"><strong>לוחם</strong> (כוח 2)</div><div style="font-size:11px;color:var(--muted)">(<span class="${resources.people>=1?'':'missing-res'}">1</span>👨, <span class="${resources.swords>=1?'':'missing-res'}">1</span>🗡️, <span class="${resources.armors>=1?'':'missing-res'}">1</span>🦺)</div><div class="craft-actions"><button class="craft-btn btn-soldier ${cW?'':'disabled-btn'}" onclick="craftMilitary('warriors',event)">אמן לוחם</button></div></div>
-        <div class="craft-card" style="grid-column:1/-1;background:rgba(144,96,208,0.08);border-color:rgba(144,96,208,0.3)"><div style="font-size:24px">🏇</div><div style="color:var(--text)"><strong>אביר</strong> (כוח 3)</div><div style="font-size:11px;color:var(--muted)">(👨+🗡️+🦺+<span class="${resources.shields>=1?'':'missing-res'}">1</span>💠+<span class="${resources.horses>=1?'':'missing-res'}">1</span>🐎)</div><div class="craft-actions"><button class="craft-btn btn-soldier ${cK?'':'disabled-btn'}" onclick="craftMilitary('knights',event)">אמן אביר</button></div></div>`;
+        <div style="grid-column:1/-1;text-align:center;font-size:13px;color:var(--muted);padding:4px 0;">חיילים: <strong style="color:${soldierCapFull ? 'var(--red)' : 'var(--green)'}">${totalSoldiers}/${maxSol}</strong></div>
+        <div class="craft-card"><div style="font-size:24px">🗡️</div><div style="color:var(--text)"><strong>חרב</strong></div><div style="font-size:11px;color:var(--muted)">(<span class="${cs ? '' : 'missing-res'}">${cs ? 2 : 2 - resources.steel}</span> ⚙️ פלדה)</div><div class="craft-actions"><button class="craft-btn ${cs ? '' : 'disabled-btn'}" onclick="craftMilitary('swords',event)">חשל</button></div></div>
+        <div class="craft-card"><div style="font-size:24px">🦺</div><div style="color:var(--text)"><strong>שריון</strong></div><div style="font-size:11px;color:var(--muted)">(<span class="${ca ? '' : 'missing-res'}">${ca ? 2 : 2 - resources.steel}</span> ⚙️ פלדה)</div><div class="craft-actions"><button class="craft-btn ${ca ? '' : 'disabled-btn'}" onclick="craftMilitary('armors',event)">צור</button></div></div>
+        <div class="craft-card"><div style="font-size:24px">💠</div><div style="color:var(--text)"><strong>מגן</strong></div><div style="font-size:11px;color:var(--muted)">(<span class="${csh ? '' : 'missing-res'}">${csh ? 4 : 4 - resources.steel}</span> ⚙️ פלדה)</div><div class="craft-actions"><button class="craft-btn ${csh ? '' : 'disabled-btn'}" onclick="craftMilitary('shields',event)">צור</button></div></div>
+        <div class="craft-card"><div style="font-size:24px">🏹</div><div style="color:var(--text)"><strong>קשת (נשק)</strong></div><div style="font-size:11px;color:var(--muted)">(<span class="${cb ? '' : 'missing-res'}">${cb ? 3 : 3 - resources.plank}</span> 🪵 קרשים)</div><div class="craft-actions"><button class="craft-btn ${cb ? '' : 'disabled-btn'}" onclick="craftMilitary('bows',event)">צור</button></div></div>
+        <div class="craft-card" style="grid-column:1/-1"><div style="font-size:24px">🐎</div><div style="color:var(--text)"><strong>סוס</strong></div><div style="font-size:11px;color:var(--muted)">(<span class="${ch ? '' : 'missing-res'}">${ch ? 5 : 5 - resources.bread}</span> 🍞 לחם)</div><div class="craft-actions"><button class="craft-btn ${ch ? '' : 'disabled-btn'}" onclick="craftMilitary('horses',event)">אמן</button></div></div>
+        <div class="craft-card" style="background:rgba(64,192,112,0.08);border-color:rgba(64,192,112,0.3)"><div style="font-size:24px">🎯</div><div style="color:var(--text)"><strong>קשת</strong> (כוח 1)</div><div style="font-size:11px;color:var(--muted)">(1👨 אדם, 1🏹 קשת)</div><div class="craft-actions"><button class="craft-btn btn-soldier ${cAr && !soldierCapFull ? '' : 'disabled-btn'}" onclick="craftMilitary('archers',event)">אמן</button><button class="craft-btn ${resources.archers > 0 ? '' : 'disabled-btn'}" style="background:var(--red)" onclick="disassembleSoldier('archers',event)">פרק</button></div></div>
+        <div class="craft-card" style="background:rgba(224,80,80,0.08);border-color:rgba(224,80,80,0.3)"><div style="font-size:24px">⚔️</div><div style="color:var(--text)"><strong>לוחם</strong> (כוח 2)</div><div style="font-size:11px;color:var(--muted)">(1👨, 1🗡️ חרב, 1🦺 שריון)</div><div class="craft-actions"><button class="craft-btn btn-soldier ${cW && !soldierCapFull ? '' : 'disabled-btn'}" onclick="craftMilitary('warriors',event)">אמן</button><button class="craft-btn ${resources.warriors > 0 ? '' : 'disabled-btn'}" style="background:var(--red)" onclick="disassembleSoldier('warriors',event)">פרק</button></div></div>
+        <div class="craft-card" style="grid-column:1/-1;background:rgba(144,96,208,0.08);border-color:rgba(144,96,208,0.3)"><div style="font-size:24px">🏇</div><div style="color:var(--text)"><strong>אביר</strong> (כוח 3)</div><div style="font-size:11px;color:var(--muted)">(👨+🗡️+🦺+1💠 מגן+1🐎 סוס)</div><div class="craft-actions"><button class="craft-btn btn-soldier ${cK && !soldierCapFull ? '' : 'disabled-btn'}" onclick="craftMilitary('knights',event)">אמן</button><button class="craft-btn ${resources.knights > 0 ? '' : 'disabled-btn'}" style="background:var(--red)" onclick="disassembleSoldier('knights',event)">פרק</button></div></div>`;
 
     // Market
     const ml = document.getElementById('market-list'); ml.innerHTML = '';
+    ml.innerHTML = `<div style="text-align:center;padding:8px 0;font-size:14px;font-weight:bold;color:var(--gold);border-bottom:1px solid var(--glass2);margin-bottom:8px;">🪙 מטבעות: ${resources.coins}</div>`;
     for (let b in basicRes) ml.innerHTML += createMarketRow(b, basicRes[b], prices.basic);
     for (let a in advRes) ml.innerHTML += createMarketRow(a, advRes[a], prices.adv);
 
@@ -129,7 +136,7 @@ function updateUI() {
             const can = resources.steel >= cS && resources.plank >= cP;
             let ut = `שדרג (`; if (cS > 0) ut += `<span class="${resources.steel >= cS ? '' : 'missing-res'}">${cS}</span>⚙️, `;
             ut += `<span class="${resources.plank >= cP ? '' : 'missing-res'}">${cP}</span>🪵)`;
-            el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>${icons[tile.type]} ${basicRes[tile.type]||advRes[tile.type]}</strong><br>רמה ${tile.level}</div><button class="upgrade-btn ${can?'':'disabled-btn'}" onclick="upgradeTile(${i},event)">${ut}</button>`;
+            el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>${icons[tile.type]} ${basicRes[tile.type] || advRes[tile.type]}</strong><br>רמה ${tile.level}</div><button class="upgrade-btn ${can ? '' : 'disabled-btn'}" onclick="upgradeTile(${i},event)">${ut}</button>`;
         }
         board.appendChild(el);
     });
