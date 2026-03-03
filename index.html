@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Age of Fun - עידן ההנאה</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        :root {
+            --bg: #0b1020;
+            --bg2: #121832;
+            --bg3: #1a2040;
+            --text: #e9eefc;
+            --muted: #8899bb;
+            --dim: #556688;
+            --gold: #f0c040;
+            --gold2: #d4a020;
+            --blue: #4a90d9;
+            --blue2: #3070b0;
+            --green: #40c070;
+            --green2: #2a9050;
+            --red: #e05050;
+            --red2: #c03030;
+            --purple: #9060d0;
+            --purple2: #7040a0;
+            --orange: #e08030;
+            --orange2: #c06020;
+            --glass: rgba(255, 255, 255, 0.06);
+            --glass2: rgba(255, 255, 255, 0.10);
+            --glass3: rgba(255, 255, 255, 0.14);
+            --shadow: rgba(0, 0, 0, 0.4);
+            --radius: 14px;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            padding-bottom: 200px;
+            overflow-x: hidden;
+            background-image: radial-gradient(ellipse 1200px 600px at 50% 0%, rgba(30, 40, 80, 0.6), transparent);
+        }
+
+        /* ===== Resource Bar ===== */
+        #resource-bar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .top-fixed {
+            background: linear-gradient(135deg, rgba(200, 120, 30, 0.9), rgba(160, 80, 20, 0.95));
+            color: white;
+            padding: 12px 12px 12px 30px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            font-size: 15px;
+            position: relative;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            font-weight: bold;
+            backdrop-filter: blur(10px);
+        }
+
+        .toggle-icon {
+            position: absolute;
+            left: 15px;
+            font-size: 12px;
+            transition: transform 0.3s;
+        }
+
+        .res-row {
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 2px;
+        }
+
+        .res-row.basic {
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            backdrop-filter: blur(8px);
+        }
+
+        .res-row.advanced {
+            background: rgba(0, 0, 0, 0.6);
+            color: var(--gold);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .res-row.military {
+            background: rgba(60, 20, 80, 0.7);
+            color: #ecf0f1;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 12px;
+        }
+
+        .res-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .res-count {
+            font-size: 14px;
+            margin-top: 2px;
+            transition: color 0.3s;
+            font-weight: bold;
+        }
+
+        /* ===== Special Buildings ===== */
+        #special-buildings {
+            display: flex;
+            gap: 10px;
+            padding: 15px 15px 5px 15px;
+        }
+
+        .special-bldg {
+            flex: 1;
+            background: var(--glass);
+            border: 1px solid var(--glass3);
+            border-radius: var(--radius);
+            padding: 12px 8px;
+            box-shadow: 0 4px 16px var(--shadow);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            backdrop-filter: blur(6px);
+        }
+
+        #town-hall {
+            border-top: 3px solid var(--blue);
+        }
+
+        #library {
+            border-top: 3px solid var(--purple);
+        }
+
+        .special-bldg h2 {
+            margin: 0 0 5px 0;
+            font-size: 15px;
+            color: var(--text);
+        }
+
+        .special-bldg p {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .cost-grid {
+            font-size: 11px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            line-height: 1.6;
+            color: var(--muted);
+        }
+
+        /* ===== Board ===== */
+        #board-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
+            padding: 10px 15px 15px 15px;
+        }
+
+        .tile {
+            background: var(--glass);
+            border: 1px solid var(--glass2);
+            border-radius: var(--radius);
+            padding: 12px 8px;
+            text-align: center;
+            box-shadow: 0 3px 12px var(--shadow);
+            border-top: 4px solid #555;
+            position: relative;
+            backdrop-filter: blur(4px);
+            transition: transform 0.15s;
+        }
+
+        .tile:active {
+            transform: scale(0.97);
+        }
+
+        .tile[data-type="wood"] {
+            border-color: #27ae60;
+            background: rgba(39, 174, 96, 0.12);
+        }
+
+        .tile[data-type="clay"] {
+            border-color: #d35400;
+            background: rgba(211, 84, 0, 0.12);
+        }
+
+        .tile[data-type="wheat"] {
+            border-color: #f1c40f;
+            background: rgba(241, 196, 15, 0.12);
+        }
+
+        .tile[data-type="ore"] {
+            border-color: #7f8c8d;
+            background: rgba(127, 140, 141, 0.12);
+        }
+
+        .tile[data-type="wool"] {
+            border-color: #9b59b6;
+            background: rgba(155, 89, 182, 0.12);
+        }
+
+        .tile[data-type="empty"] {
+            border-color: #555;
+            background: rgba(255, 255, 255, 0.04);
+            border-top-style: dashed;
+        }
+
+        .tile-number {
+            background: rgba(255, 255, 255, 0.12);
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            margin-left: auto;
+            margin-right: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .tile-number.red {
+            color: #e74c3c;
+        }
+
+        .tile-info {
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        /* ===== Buttons ===== */
+        button {
+            transition: transform 0.1s ease, filter 0.1s ease, background 0.2s;
+            cursor: pointer;
+        }
+
+        button:active {
+            transform: scale(0.93) !important;
+            filter: brightness(0.85);
+        }
+
+        .upgrade-btn {
+            background: linear-gradient(135deg, var(--green), var(--green2));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 12px;
+            width: 100%;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(40, 180, 100, 0.3);
+        }
+
+        .disabled-btn {
+            background: rgba(255, 255, 255, 0.1) !important;
+            opacity: 0.6;
+            box-shadow: none !important;
+        }
+
+        .missing-res {
+            color: var(--red);
+            font-weight: bold;
+            font-size: 110%;
+        }
+
+        .empty-choices {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .choice-btn {
+            background: var(--glass2);
+            border: 1px solid var(--glass3);
+            border-radius: 6px;
+            padding: 4px 6px;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        /* ===== Bottom Dashboard ===== */
+        #bottom-dashboard {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, rgba(18, 24, 50, 0.95), rgba(11, 16, 32, 0.98));
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
+            padding: 10px 15px 15px 15px;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            border-top: 1px solid var(--glass3);
+        }
+
+        .log {
+            height: 18px;
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 8px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .dice-controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .dice-btn {
+            background: linear-gradient(135deg, var(--blue), var(--blue2));
+            color: white;
+            border: none;
+            border-radius: 14px;
+            padding: 10px;
+            width: 100%;
+            max-width: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            user-select: none;
+            box-shadow: 0 4px 16px rgba(74, 144, 217, 0.3);
+        }
+
+        .dice-btn:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .dice-btn.auto-active {
+            background: linear-gradient(135deg, var(--green), var(--green2));
+            box-shadow: 0 4px 16px rgba(64, 192, 112, 0.3);
+        }
+
+        .dice-display {
+            font-size: 32px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .dice-hint {
+            font-size: 11px;
+            margin-top: 2px;
+            opacity: 0.8;
+            font-weight: normal;
+        }
+
+        @keyframes shake {
+            0% {
+                transform: rotate(0) scale(1)
+            }
+
+            25% {
+                transform: rotate(-18deg) scale(1.1)
+            }
+
+            50% {
+                transform: rotate(18deg) scale(1.1)
+            }
+
+            75% {
+                transform: rotate(-18deg) scale(1.1)
+            }
+
+            100% {
+                transform: rotate(0) scale(1)
+            }
+        }
+
+        .rolling {
+            animation: shake 0.3s ease-in-out infinite;
+            color: var(--gold);
+        }
+
+        /* ===== Nav Buttons ===== */
+        .dashboard-nav {
+            display: flex;
+            gap: 6px;
+            justify-content: space-between;
+        }
+
+        .nav-btn {
+            flex: 1;
+            border: 1px solid var(--glass3);
+            border-radius: 12px;
+            padding: 8px 4px;
+            color: white;
+            font-weight: bold;
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px var(--shadow);
+            backdrop-filter: blur(4px);
+        }
+
+        .nav-icon {
+            font-size: 18px;
+            margin-bottom: 2px;
+        }
+
+        .btn-craft {
+            background: linear-gradient(135deg, rgba(192, 57, 43, 0.7), rgba(150, 40, 30, 0.7));
+        }
+
+        .btn-military {
+            background: linear-gradient(135deg, rgba(142, 68, 173, 0.7), rgba(100, 40, 130, 0.7));
+        }
+
+        .btn-market {
+            background: linear-gradient(135deg, rgba(230, 126, 34, 0.7), rgba(180, 90, 20, 0.7));
+        }
+
+        .btn-menu {
+            background: linear-gradient(135deg, rgba(52, 73, 94, 0.7), rgba(35, 50, 70, 0.7));
+        }
+
+        /* ===== Modals ===== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: linear-gradient(180deg, rgba(26, 32, 64, 0.97), rgba(11, 16, 32, 0.98));
+            width: 100%;
+            max-width: 400px;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+            text-align: left;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+            direction: rtl;
+            border: 1px solid var(--glass3);
+        }
+
+        .modal-content.center-text {
+            text-align: center;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--muted);
+            background: none;
+            border: none;
+        }
+
+        .modal-title {
+            margin-top: 0;
+            color: var(--text);
+            border-bottom: 1px solid var(--glass3);
+            padding-bottom: 10px;
+            text-align: center;
+        }
+
+        /* Craft & Military Grid */
+        .craft-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .craft-card {
+            border: 1px solid var(--glass2);
+            border-radius: 12px;
+            padding: 10px;
+            background: var(--glass);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            backdrop-filter: blur(4px);
+        }
+
+        .craft-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .craft-btn {
+            flex: 1;
+            background: var(--blue);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 7px 0;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .btn-max {
+            background: var(--purple);
+        }
+
+        .btn-soldier {
+            width: 100%;
+            background: var(--purple);
+        }
+
+        /* Market */
+        .market-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--glass);
+        }
+
+        .market-item:last-child {
+            border-bottom: none;
+        }
+
+        .market-res {
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 70px;
+        }
+
+        .market-amt {
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: normal;
+        }
+
+        .market-actions button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 12px;
+            color: white;
+        }
+
+        .btn-sell {
+            background: var(--orange);
+        }
+
+        .btn-buy {
+            background: var(--green);
+        }
+
+        /* Combat simple modal */
+        .combat-stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .stat-box {
+            background: var(--glass);
+            padding: 15px;
+            border-radius: 12px;
+            width: 45%;
+            border: 1px solid var(--glass3);
+        }
+
+        .stat-box.enemy {
+            border-color: rgba(224, 80, 80, 0.5);
+            color: var(--red);
+        }
+
+        .stat-box.player {
+            border-color: rgba(64, 192, 112, 0.5);
+            color: var(--green);
+        }
+
+        .combat-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .attack-btn {
+            background: linear-gradient(135deg, var(--red), var(--red2));
+            color: white;
+            padding: 12px;
+            flex: 1;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .retreat-btn {
+            background: rgba(255, 255, 255, 0.12);
+            color: white;
+            padding: 12px;
+            flex: 1;
+            border: 1px solid var(--glass3);
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        /* Chest */
+        #chest-animation {
+            font-size: 50px;
+            margin: 20px 0;
+            font-weight: bold;
+            color: var(--gold);
+            text-shadow: 0 2px 8px rgba(240, 192, 64, 0.4);
+            text-align: center;
+        }
+
+        .chest-success {
+            color: var(--green) !important;
+            transform: scale(1.2);
+            transition: 0.3s;
+        }
+
+        /* Cheats */
+        .cheat-row {
+            background: var(--glass);
+            border: 1px solid var(--glass2);
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .cheat-input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+            align-items: center;
+        }
+
+        .cheat-input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid var(--glass3);
+            border-radius: 6px;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text);
+        }
+
+        .cheat-btn {
+            background: var(--blue);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 15px;
+            font-weight: bold;
+        }
+
+        /* ===== Battle Overlay ===== */
+        #battle-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg);
+            z-index: 300;
+            display: none;
+            flex-direction: column;
+        }
+
+        #battle-overlay.active {
+            display: flex;
+        }
+
+        #battle-canvas {
+            flex: 1;
+            display: block;
+            margin: 10px;
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(0, 0, 0, .18), rgba(0, 0, 0, .40)),
+                radial-gradient(900px 340px at 50% 85%, rgba(255, 255, 255, .06), rgba(255, 255, 255, 0));
+            border: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        .battle-hud {
+            position: absolute;
+            top: 20px;
+            left: 14px;
+            right: 14px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .battle-badge {
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(255, 255, 255, .10);
+            border-radius: var(--radius);
+            padding: 8px 10px;
+            font-size: 13px;
+            color: var(--muted);
+            backdrop-filter: blur(6px);
+            max-width: 52%;
+        }
+
+        .battle-badge b {
+            color: var(--text);
+        }
+
+        .battle-controls {
+            pointer-events: auto;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .battle-controls button {
+            padding: 10px 12px;
+            border-radius: var(--radius);
+            border: 1px solid rgba(255, 255, 255, .14);
+            background: rgba(255, 255, 255, .10);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .battle-controls button:active {
+            transform: translateY(1px);
+        }
+
+        .battle-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 14px;
+            right: 14px;
+            display: flex;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .hint-chip {
+            background: rgba(0, 0, 0, .35);
+            border: 1px solid rgba(255, 255, 255, .10);
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 12px;
+            color: var(--muted);
+            backdrop-filter: blur(6px);
+            text-align: center;
+        }
+
+        /* ===== Battle Result Modal ===== */
+        #battle-result-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 350;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            backdrop-filter: blur(6px);
+        }
+
+        .result-card {
+            background: linear-gradient(180deg, rgba(26, 32, 64, 0.98), rgba(11, 16, 32, 0.99));
+            border: 1px solid var(--glass3);
+            border-radius: 18px;
+            padding: 24px;
+            max-width: 360px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+        }
+
+        .result-title {
+            font-size: 28px;
+            margin: 0 0 8px 0;
+        }
+
+        .result-subtitle {
+            font-size: 14px;
+            color: var(--muted);
+            margin: 0 0 20px 0;
+        }
+
+        .result-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .result-stat {
+            background: var(--glass);
+            border: 1px solid var(--glass2);
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .result-stat-label {
+            font-size: 11px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .result-stat-value {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .result-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            background: linear-gradient(135deg, var(--blue), var(--blue2));
+            box-shadow: 0 4px 16px rgba(74, 144, 217, 0.3);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--glass3);
+            border-radius: 4px;
+        }
+
+        /* Label for checkbox */
+        label.cheat-label {
+            color: var(--muted);
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="resource-bar">
+        <div class="top-fixed" onclick="toggleResources()">
+            <div style="flex:1; text-align:center;">🪙 <span id="res-coins">0</span></div>
+            <div style="flex:1; text-align:center;">👥 <span id="res-pop">0/5</span></div>
+            <div style="flex:1; text-align:center;">⚔️ <span id="res-power">0</span></div>
+            <div style="flex:1; text-align:center;">🧪 <span id="res-research">0</span></div>
+            <div id="res-toggle-icon" class="toggle-icon">▼</div>
+        </div>
+        <div id="collapsible-res" style="display: none; flex-direction: column;">
+            <div class="res-row basic">
+                <div class="res-item" style="width:20%">🌲 <span class="res-count" id="res-wood">0</span></div>
+                <div class="res-item" style="width:20%">🟤 <span class="res-count" id="res-clay">0</span></div>
+                <div class="res-item" style="width:20%">🌾 <span class="res-count" id="res-wheat">0</span></div>
+                <div class="res-item" style="width:20%">🐑 <span class="res-count" id="res-wool">0</span></div>
+                <div class="res-item" style="width:20%">⛰️ <span class="res-count" id="res-ore">0</span></div>
+            </div>
+            <div class="res-row advanced">
+                <div class="res-item" style="width:20%" title="קרש">🪵 <span class="res-count" id="res-plank">0</span>
+                </div>
+                <div class="res-item" style="width:20%" title="לבנה">🧱 <span class="res-count" id="res-brick">0</span>
+                </div>
+                <div class="res-item" style="width:20%" title="לחם">🍞 <span class="res-count" id="res-bread">0</span>
+                </div>
+                <div class="res-item" style="width:20%" title="בד">🧵 <span class="res-count" id="res-cloth">0</span>
+                </div>
+                <div class="res-item" style="width:20%" title="פלדה">⚙️ <span class="res-count" id="res-steel">0</span>
+                </div>
+            </div>
+            <div class="res-row military">
+                <div class="res-item" style="width:25%">👨 אדם <span class="res-count" id="res-people">0</span></div>
+                <div class="res-item" style="width:25%">🗡️ חרב <span class="res-count" id="res-swords">0</span></div>
+                <div class="res-item" style="width:25%">🦺 שריון <span class="res-count" id="res-armors">0</span></div>
+                <div class="res-item" style="width:25%">💠 מגן <span class="res-count" id="res-shields">0</span></div>
+            </div>
+            <div class="res-row military" style="border-top:none;">
+                <div class="res-item" style="width:50%">🏹 קשת (נשק) <span class="res-count" id="res-bows">0</span>
+                </div>
+                <div class="res-item" style="width:50%">🐎 סוס <span class="res-count" id="res-horses">0</span></div>
+            </div>
+            <div class="res-row military" style="border-top:none; background: rgba(50,20,60,0.7);">
+                <div class="res-item" style="width:33%">🎯 קשת <span class="res-count" id="res-archers">0</span></div>
+                <div class="res-item" style="width:33%">⚔️ לוחם <span class="res-count" id="res-warriors">0</span></div>
+                <div class="res-item" style="width:33%">🏇 אביר <span class="res-count" id="res-knights">0</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="special-buildings">
+        <div id="town-hall" class="special-bldg">
+            <div>
+                <h2>🏛️ עירייה (רמה <span id="th-level">1</span>)</h2>
+                <p>2 בקוביות = <strong id="th-prod">1</strong> 👨</p>
+            </div>
+            <div>
+                <div class="cost-grid" id="th-cost-display"></div>
+                <button id="btn-upgrade-th" class="upgrade-btn" onclick="upgradeTownHall(event)">שדרג עירייה</button>
+            </div>
+        </div>
+        <div id="library" class="special-bldg">
+            <div>
+                <h2>📚 ספרייה (רמה <span id="lib-level">1</span>)</h2>
+                <p>3 בקוביות = <strong id="lib-prod">1</strong> 🧪</p>
+            </div>
+            <div>
+                <div class="cost-grid" id="lib-cost-display"></div>
+                <button id="btn-upgrade-lib" class="upgrade-btn" onclick="upgradeLibrary(event)">שדרג ספרייה</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="board-section"></div>
+
+    <div id="bottom-dashboard">
+        <div class="log" id="action-log">ברוכים הבאים ל-Age of Fun! 🎮</div>
+        <div class="dice-controls">
+            <button class="dice-btn" id="btn-roll">
+                <span class="dice-display" id="dice-result">🎲 0</span>
+                <span class="dice-hint" id="dice-hint">הקלק לזריקה / לחיצה ארוכה לאוטומטי</span>
+            </button>
+        </div>
+        <div class="dashboard-nav">
+            <button class="nav-btn btn-craft" onclick="openModal('craftModal')"><span
+                    class="nav-icon">🏭</span>מפעל</button>
+            <button class="nav-btn btn-military" onclick="openModal('militaryModal')"><span
+                    class="nav-icon">⛺</span>צבא</button>
+            <button class="nav-btn btn-market" onclick="openModal('marketModal')"><span
+                    class="nav-icon">⚖️</span>שוק</button>
+            <button class="nav-btn btn-menu" onclick="openModal('menuModal')"><span
+                    class="nav-icon">⚙️</span>תפריט</button>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="menuModal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('menuModal')">×</button>
+            <h3 class="modal-title">⚙️ תפריט</h3>
+            <div class="cheat-row">
+                <strong>💾 שמירה וטעינה:</strong>
+                <div class="cheat-input-group" style="margin-top:8px;">
+                    <button class="cheat-btn" style="flex:1; background:var(--green);" onclick="saveGame(event)">💾
+                        שמור</button>
+                    <button class="cheat-btn" style="flex:1; background:var(--red);" onclick="resetGame(event)">🗑️ משחק
+                        חדש</button>
+                </div>
+            </div>
+            <div class="cheat-row">
+                <strong>🎲 קבע תוצאת קובייה:</strong>
+                <div class="cheat-input-group">
+                    <input type="number" id="cheat-dice-val" class="cheat-input" min="2" max="12" value="10">
+                    <button class="cheat-btn" onclick="setNextRoll(event)">קבע</button>
+                </div>
+                <div style="margin-top: 8px;"><label class="cheat-label"><input type="checkbox" id="cheat-roll-persist">
+                        קבוע (כל זריקה)</label></div>
+                <button class="cheat-btn" style="margin-top:10px; width:100%; background:var(--red);"
+                    onclick="clearForcedRoll(event)">בטל כפיית תוצאה</button>
+            </div>
+            <div class="cheat-row">
+                <strong>🌍 אדמה מיידית:</strong>
+                <button class="cheat-btn" style="width:100%; margin-top:5px;" onclick="cheatAddLand(event)">➕ גלה אדמה
+                    חדשה</button>
+            </div>
+            <div class="cheat-row">
+                <strong>🪙 הוסף מטבעות:</strong>
+                <div class="cheat-input-group">
+                    <input type="number" id="cheat-coins-val" class="cheat-input" value="1000" step="100">
+                    <button class="cheat-btn" style="background:var(--green);"
+                        onclick="addCheatCoins(event)">הוסף</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="marketModal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('marketModal')">×</button>
+            <h3 class="modal-title">⚖️ שוק סחר</h3>
+            <p style="font-size:12px; color:var(--muted); text-align:center;">קנה ומוכר משאבים באמצעות מטבעות.</p>
+            <div id="market-list"></div>
+        </div>
+    </div>
+
+    <div id="craftModal" class="modal-overlay">
+        <div class="modal-content center-text">
+            <button class="close-btn" onclick="closeModal('craftModal')">×</button>
+            <h3 class="modal-title">🏭 מפעל יצירה (3 = 1)</h3>
+            <div class="craft-grid" id="crafting-grid"></div>
+        </div>
+    </div>
+
+    <div id="militaryModal" class="modal-overlay">
+        <div class="modal-content center-text">
+            <button class="close-btn" onclick="closeModal('militaryModal')">×</button>
+            <h3 class="modal-title">⛺ בסיס צבאי</h3>
+            <p style="font-size:12px; color:var(--muted);">הגדל את הכוח הצבאי שלך לקראת קרבות!</p>
+            <div class="craft-grid" id="military-grid"></div>
+        </div>
+    </div>
+
+    <div id="chestModal" class="modal-overlay">
+        <div class="modal-content center-text">
+            <h3 class="modal-title" style="color:var(--gold)">🎁 תיבת אוצר נדירה!</h3>
+            <p style="color:var(--muted)">הקוביות הראו 12! מצאת תיבה מסתורית מלאה במטבעות.</p>
+            <div id="chest-animation">❓🪙</div>
+            <button id="btn-open-chest"
+                style="background:var(--orange); width:100%; border-radius:10px; padding:14px; border:none; color:white; font-weight:bold; font-size:16px;"
+                onclick="openChest()">פתח תיבה</button>
+            <button id="btn-close-chest"
+                style="display:none; background:var(--green); width:100%; border-radius:10px; padding:14px; border:none; color:white; font-weight:bold; font-size:16px;"
+                onclick="closeChest()">אסוף שלל</button>
+        </div>
+    </div>
+
+    <div id="combatModal" class="modal-overlay">
+        <div class="modal-content center-text">
+            <h3 class="modal-title">⚔️ אויבים לפניך!</h3>
+            <p style="color:var(--muted)">מצאת אדמה חדשה, אך היא מוחזקת על ידי אויבים!</p>
+            <div class="combat-stats">
+                <div class="stat-box player">
+                    <div style="font-size:13px; color:var(--muted)">הצבא שלי</div>
+                    <div id="combat-player-info" style="font-size:12px; margin-top:6px;"></div>
+                </div>
+                <div class="stat-box enemy">
+                    <div style="font-size:13px; color:var(--muted)">כוח האויב</div>
+                    <div id="combat-enemy-info" style="font-size:12px; margin-top:6px;"></div>
+                </div>
+            </div>
+            <div class="combat-actions">
+                <button class="retreat-btn" onclick="retreat()">לסגת</button>
+                <button id="btn-combat-attack" class="attack-btn" onclick="startBattleSimulation()">הסתער!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Battle Overlay -->
+    <div id="battle-overlay">
+        <canvas id="battle-canvas"></canvas>
+        <div class="battle-hud">
+            <div id="battle-status" class="battle-badge"><b>סטטוס:</b> הקרב בעיצומו</div>
+            <div id="battle-score" class="battle-badge"><b>יחידות:</b> ...</div>
+            <div class="battle-controls">
+                <button id="btn-battle-pause">השהה</button>
+                <button id="btn-battle-retreat" style="background:rgba(224,80,80,0.25);">נסיגה</button>
+            </div>
+        </div>
+        <div class="battle-hint">
+            <div class="hint-chip">אתה למטה 🔵 • האויב למעלה 🔴</div>
+        </div>
+    </div>
+
+    <!-- Battle Result Modal -->
+    <div id="battle-result-modal">
+        <div class="result-card">
+            <div class="result-title" id="result-title">⚔️</div>
+            <p class="result-subtitle" id="result-subtitle"></p>
+            <div class="result-stats" id="result-stats"></div>
+            <button class="result-btn" onclick="closeBattleResult()">המשך</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+    <script src="actions.js"></script>
+    <script src="battle.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Catan Builder - Military Tactics</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --dark: #2c3e50;
+            --darker: #1a252f;
+            --warning: #f1c40f;
+            --military: #8e44ad;
+            --market: #e67e22;
+            --city: #2980b9;
+            --science: #9b59b6;
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-tap-highlight-color: transparent;}
+        body { margin: 0; background-color: #f4f7f6; color: var(--dark); padding-bottom: 220px; overflow-x: hidden; }
+        
+        /* סרגל משאבים עליון חכם */
+        #resource-bar {
+            position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: 11px; font-weight: bold; background: var(--dark);
+        }
+        .top-fixed {
+            background: #d35400; color: white; padding: 12px 12px 12px 30px; cursor: pointer; display: flex; 
+            justify-content: space-around; align-items: center; font-size: 15px; position: relative;
+            border-bottom: 2px solid #a04000;
+        }
+        .toggle-icon {
+            position: absolute; left: 15px; font-size: 12px; transition: transform 0.3s;
+        }
+        
+        .res-row { display: flex; justify-content: space-around; padding: 8px 2px; }
+        .res-row.basic { background: var(--dark); color: white; }
+        .res-row.advanced { background: var(--darker); color: var(--warning); border-top: 1px solid #444; }
+        .res-row.military { background: #4a235a; color: #ecf0f1; border-top: 1px solid #666; font-size: 12px;}
+        .res-item { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .res-count { font-size: 14px; margin-top: 2px; transition: color 0.3s; }
+
+        /* מבנים מיוחדים */
+        #special-buildings { display: flex; gap: 10px; padding: 15px 15px 5px 15px; }
+        .special-bldg {
+            flex: 1; background: white; border-radius: 12px; padding: 12px 8px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15); text-align: center;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        #town-hall { border-top: 5px solid var(--city); }
+        #library { border-top: 5px solid var(--science); }
+        .special-bldg h2 { margin: 0 0 5px 0; font-size: 16px; color: var(--dark); }
+        .special-bldg p { margin: 0 0 8px 0; font-size: 12px; color: #555; }
+        .cost-grid { font-size: 11px; margin-bottom: 8px; font-weight: bold; line-height: 1.4; }
+
+        /* מפה */
+        #board-section { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; padding: 10px 15px 15px 15px; }
+        .tile {
+            background: white; border-radius: 10px; padding: 12px 8px; text-align: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1); border-top: 5px solid #ccc; position: relative;
+        }
+        .tile[data-type="wood"] { border-color: #27ae60; background: #eafaf1; }
+        .tile[data-type="clay"] { border-color: #d35400; background: #fdf2e9; }
+        .tile[data-type="wheat"] { border-color: #f1c40f; background: #fef9e7; }
+        .tile[data-type="ore"] { border-color: #7f8c8d; background: #f2f4f4; }
+        .tile[data-type="wool"] { border-color: #9b59b6; background: #f5eef8; }
+        .tile[data-type="empty"] { border-color: #95a5a6; background: #ecf0f1; border-top-style: dashed; }
+        
+        .tile-number {
+            background: var(--dark); color: white; border-radius: 50%; width: 30px; height: 30px;
+            display: inline-flex; justify-content: center; align-items: center;
+            font-size: 16px; font-weight: bold; margin-bottom: 8px; margin-left: auto; margin-right: auto;
+        }
+        .tile-number.red { color: #e74c3c; }
+        .tile-info { font-size: 13px; margin-bottom: 8px; }
+        
+        /* כפתורים ואנימציות */
+        button { transition: transform 0.1s ease, filter 0.1s ease, background 0.2s; cursor: pointer; }
+        button:active { transform: scale(0.92) !important; filter: brightness(0.9); }
+        
+        .upgrade-btn { background: var(--success); color: white; border:none; border-radius: 5px; padding: 8px; font-size: 12px; width: 100%; font-weight: bold; }
+        .disabled-btn { background: #bdc3c7 !important; opacity: 0.9; }
+        .missing-res { color: var(--danger); font-weight: bold; font-size: 110%; }
+
+        .empty-choices { display: flex; justify-content: center; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+        .choice-btn { background: white; border: 1px solid #bdc3c7; border-radius: 4px; padding: 4px; font-size: 14px; }
+
+        /* דשבורד תחתון */
+        #bottom-dashboard {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: white; border-top-left-radius: 20px; border-top-right-radius: 20px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15); padding: 12px 15px 15px 15px; z-index: 100;
+        }
+        .log { height: 18px; font-size: 12px; color: #7f8c8d; margin-bottom: 10px; font-weight: bold; text-align: center; }
+        
+        .dice-controls { display: flex; justify-content: center; margin-bottom: 12px; }
+        .dice-btn {
+            background: var(--primary); color: white; border: none; border-radius: 12px;
+            padding: 10px; width: 100%; max-width: 300px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; touch-action: manipulation;
+            -webkit-touch-callout: none; user-select: none;
+        }
+        .dice-btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
+        .dice-btn.auto-active { background: var(--success); }
+        .dice-display { font-size: 34px; font-weight: bold; display: inline-block; }
+        .dice-hint { font-size: 11px; margin-top: 2px; opacity: 0.9; font-weight: normal; }
+
+        @keyframes shake {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(-20deg) scale(1.1); }
+            50% { transform: rotate(20deg) scale(1.1); }
+            75% { transform: rotate(-20deg) scale(1.1); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+        .rolling { animation: shake 0.3s ease-in-out infinite; color: #f1c40f; }
+        
+        /* תפריט ניווט */
+        .dashboard-nav { display: flex; gap: 6px; justify-content: space-between; }
+        .nav-btn {
+            flex: 1; border: none; border-radius: 10px; padding: 8px 4px;
+            color: white; font-weight: bold; font-size: 12px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2); 
+        }
+        .nav-icon { font-size: 20px; margin-bottom: 3px; }
+        .btn-craft { background: #c0392b; }
+        .btn-military { background: var(--military); }
+        .btn-market { background: var(--market); }
+        .btn-menu { background: #34495e; }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center;
+            z-index: 200; padding: 20px;
+        }
+        .modal-content {
+            background: white; width: 100%; max-width: 400px; border-radius: 12px;
+            padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); text-align: left;
+            max-height: 85vh; overflow-y: auto; position: relative; direction: rtl;
+        }
+        .modal-content.center-text { text-align: center; }
+        .close-btn {
+            position: absolute; top: 10px; right: 15px; font-size: 24px; font-weight: bold;
+            color: #7f8c8d; background: none; border: none;
+        }
+        .modal-title { margin-top: 0; color: var(--dark); border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; text-align: center;}
+        
+        .craft-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; text-align: center;}
+        .craft-card { border: 1px solid #ddd; border-radius: 8px; padding: 10px; background: #f9f9f9; display: flex; flex-direction: column; justify-content: space-between;}
+        .craft-actions { display: flex; gap: 5px; margin-top: 8px; }
+        .craft-btn { flex: 1; background: var(--primary); color: white; border: none; border-radius: 5px; padding: 6px 0; font-size: 12px; font-weight: bold;}
+        .btn-max { background: #8e44ad; }
+        .btn-soldier { width: 100%; background: var(--military); }
+
+        /* שוק */
+        .market-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .market-item:last-child { border-bottom: none; }
+        .market-res { font-size: 18px; display: flex; align-items: center; gap: 6px; min-width: 70px; }
+        .market-amt { font-size: 12px; color: #7f8c8d; font-weight: normal; }
+        .market-actions button { padding: 6px 12px; border: none; border-radius: 5px; font-weight: bold; font-size: 12px; color: white;}
+        .btn-sell { background: #f39c12; }
+        .btn-buy { background: #27ae60; }
+
+        /* קרב */
+        .combat-stats { display: flex; justify-content: space-around; margin: 20px 0; font-size: 18px; font-weight: bold; text-align: center;}
+        .stat-box { background: #ecf0f1; padding: 15px; border-radius: 10px; width: 45%; }
+        .stat-box.enemy { background: #fdedec; color: var(--danger); border: 2px solid var(--danger); }
+        .stat-box.player { background: #eafaf1; color: var(--success); border: 2px solid var(--success); }
+        .combat-actions { display: flex; gap: 10px; }
+        .attack-btn { background: var(--danger); color: white; padding: 12px; flex: 1; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; }
+        .retreat-btn { background: #7f8c8d; color: white; padding: 12px; flex: 1; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; }
+
+        /* אנימציות צ'יטים ותיבה */
+        #chest-animation { font-size: 50px; margin: 20px 0; font-weight: bold; color: var(--market); text-shadow: 0 2px 4px rgba(0,0,0,0.2); text-align: center;}
+        .chest-success { color: var(--success) !important; transform: scale(1.2); transition: 0.3s; }
+        .cheat-row { background: #fdfdfd; border: 1px solid #eee; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
+        .cheat-input-group { display: flex; gap: 10px; margin-top: 5px; align-items: center;}
+        .cheat-input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        .cheat-btn { background: var(--dark); color: white; border: none; border-radius: 5px; padding: 8px 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="resource-bar">
+        <div class="top-fixed" onclick="toggleResources()">
+            <div style="flex:1; text-align:center;">🪙 <span id="res-coins">0</span></div>
+            <div style="flex:1; text-align:center;">👥 <span id="res-pop">0/5</span></div>
+            <div style="flex:1; text-align:center;">⚔️ <span id="res-power">0</span></div>
+            <div style="flex:1; text-align:center;">🧪 <span id="res-research">0</span></div>
+            <div id="res-toggle-icon" class="toggle-icon">▼</div>
+        </div>
+        
+        <div id="collapsible-res" style="display: none; flex-direction: column;">
+            <div class="res-row basic">
+                <div class="res-item" style="width: 20%;">🌲 <span class="res-count" id="res-wood">0</span></div>
+                <div class="res-item" style="width: 20%;">🟤 <span class="res-count" id="res-clay">0</span></div>
+                <div class="res-item" style="width: 20%;">🌾 <span class="res-count" id="res-wheat">0</span></div>
+                <div class="res-item" style="width: 20%;">🐑 <span class="res-count" id="res-wool">0</span></div>
+                <div class="res-item" style="width: 20%;">⛰️ <span class="res-count" id="res-ore">0</span></div>
+            </div>
+            <div class="res-row advanced">
+                <div class="res-item" style="width: 20%;" title="קרש">🪵 <span class="res-count" id="res-plank">0</span></div>
+                <div class="res-item" style="width: 20%;" title="לבנה">🧱 <span class="res-count" id="res-brick">0</span></div>
+                <div class="res-item" style="width: 20%;" title="לחם">🍞 <span class="res-count" id="res-bread">0</span></div>
+                <div class="res-item" style="width: 20%;" title="בד">🧵 <span class="res-count" id="res-cloth">0</span></div>
+                <div class="res-item" style="width: 20%;" title="פלדה">⚙️ <span class="res-count" id="res-steel">0</span></div>
+            </div>
+            <div class="res-row military">
+                <div class="res-item" style="width: 25%;">👨 אדם <span class="res-count" id="res-people">0</span></div>
+                <div class="res-item" style="width: 25%;">🗡️ חרב <span class="res-count" id="res-swords">0</span></div>
+                <div class="res-item" style="width: 25%;">🦺 שריון <span class="res-count" id="res-armors">0</span></div>
+                <div class="res-item" style="width: 25%;">💠 מגן <span class="res-count" id="res-shields">0</span></div>
+            </div>
+            <div class="res-row military" style="border-top:none;">
+                <div class="res-item" style="width: 50%;">🏹 קשת (נשק) <span class="res-count" id="res-bows">0</span></div>
+                <div class="res-item" style="width: 50%;">🐎 סוס <span class="res-count" id="res-horses">0</span></div>
+            </div>
+            <div class="res-row military" style="border-top:none; background: #3c1c4a;">
+                <div class="res-item" style="width: 33%;">🎯 קשת <span class="res-count" id="res-archers">0</span></div>
+                <div class="res-item" style="width: 33%;">⚔️ לוחם <span class="res-count" id="res-warriors">0</span></div>
+                <div class="res-item" style="width: 33%;">🏇 אביר <span class="res-count" id="res-knights">0</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="special-buildings">
+        <div id="town-hall" class="special-bldg">
+            <div>
+                <h2>🏛️ עירייה (רמה <span id="th-level">1</span>)</h2>
+                <p>2 בקוביות = <strong id="th-prod">1</strong> 👨</p>
+            </div>
+            <div>
+                <div class="cost-grid" id="th-cost-display"></div>
+                <button id="btn-upgrade-th" class="upgrade-btn" onclick="upgradeTownHall(event)">שדרג עירייה</button>
+            </div>
+        </div>
+
+        <div id="library" class="special-bldg">
+            <div>
+                <h2>📚 ספרייה (רמה <span id="lib-level">1</span>)</h2>
+                <p>3 בקוביות = <strong id="lib-prod">1</strong> 🧪</p>
+            </div>
+            <div>
+                <div class="cost-grid" id="lib-cost-display"></div>
+                <button id="btn-upgrade-lib" class="upgrade-btn" onclick="upgradeLibrary(event)">שדרג ספרייה</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="board-section"></div>
+
+    <div id="bottom-dashboard">
+        <div class="log" id="action-log">ב-10 אדמה, 12 אוצר, 2 אנשים, 3 מחקר!</div>
+        
+        <div class="dice-controls">
+            <button class="dice-btn" id="btn-roll">
+                <span class="dice-display" id="dice-result">🎲 0</span>
+                <span class="dice-hint" id="dice-hint">הקלק לזריקה / לחיצה ארוכה לאוטומטי</span>
+            </button>
+        </div>
+
+        <div class="dashboard-nav">
+            <button class="nav-btn btn-craft" onclick="openModal('craftModal')"><span class="nav-icon">🏭</span>מפעל</button>
+            <button class="nav-btn btn-military" onclick="openModal('militaryModal')"><span class="nav-icon">⛺</span>צבא</button>
+            <button class="nav-btn btn-market" onclick="openModal('marketModal')"><span class="nav-icon">⚖️</span>שוק</button>
+            <button class="nav-btn btn-menu" onclick="openModal('menuModal')"><span class="nav-icon">⚙️</span>תפריט</button>
+        </div>
+    </div>
+
+    <div id="menuModal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('menuModal')">×</button>
+            <h3 class="modal-title">⚙️ תפריט צ'יטים</h3>
+            
+            <div class="cheat-row">
+                <strong>🎲 קבע תוצאת קובייה:</strong>
+                <div class="cheat-input-group">
+                    <input type="number" id="cheat-dice-val" class="cheat-input" min="2" max="12" value="10">
+                    <button class="cheat-btn" onclick="setNextRoll(event)">קבע</button>
+                </div>
+                <div style="margin-top: 8px; font-size:13px;">
+                    <label><input type="checkbox" id="cheat-roll-persist"> קבוע (כל זריקה מחדש)</label>
+                </div>
+                <button class="cheat-btn" style="margin-top: 10px; width: 100%; background: #e74c3c;" onclick="clearForcedRoll(event)">בטל כפיית תוצאה</button>
+            </div>
+
+            <div class="cheat-row">
+                <strong>🌍 אדמה מיידית (ללא קרב):</strong>
+                <button class="cheat-btn" style="width: 100%; margin-top:5px; background:var(--primary);" onclick="cheatAddLand(event)">➕ גלה אדמה חדשה</button>
+            </div>
+
+            <div class="cheat-row">
+                <strong>🪙 הוסף מטבעות:</strong>
+                <div class="cheat-input-group">
+                    <input type="number" id="cheat-coins-val" class="cheat-input" value="1000" step="100">
+                    <button class="cheat-btn" style="background:var(--success);" onclick="addCheatCoins(event)">הוסף</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="marketModal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('marketModal')">×</button>
+            <h3 class="modal-title">⚖️ שוק סחר</h3>
+            <p style="font-size:12px; color:#555; text-align:center;">קנה ומוכר משאבים באמצעות מטבעות.</p>
+            <div id="market-list"></div>
+        </div>
+    </div>
+
+    <div id="craftModal" class="modal-overlay">
+        <div class="modal-content center-text">
+            <button class="close-btn" onclick="closeModal('craftModal')">×</button>
+            <h3 class="modal-title">🏭 מפעל יצירה (3 = 1)</h3>
+            <div class="craft-grid" id="crafting-grid"></div>
+        </div>
+    </div>
+
+    <div id="militaryModal" class="modal-overlay">
+        <div class="modal-content center-text">
+            <button class="close-btn" onclick="closeModal('militaryModal')">×</button>
+            <h3 class="modal-title">⛺ בסיס צבאי</h3>
+            <p style="font-size:12px; color:#555;">הגדל את הכוח הצבאי שלך לקראת קרבות!</p>
+            <div class="craft-grid" id="military-grid"></div>
+        </div>
+    </div>
+
+    <div id="chestModal" class="modal-overlay">
+        <div class="modal-content center-text">
+            <h3 class="modal-title" style="color:var(--market)">🎁 תיבת אוצר נדירה!</h3>
+            <p>הקוביות הראו 12! מצאת תיבה מסתורית מלאה במטבעות.</p>
+            <div id="chest-animation">❓🪙</div>
+            <button class="main-btn" id="btn-open-chest" style="background:var(--market); width:100%; border-radius:10px; padding:12px;" onclick="openChest()">פתח תיבה</button>
+            <button class="main-btn" id="btn-close-chest" style="display:none; background:var(--success); width:100%; border-radius:10px; padding:12px;" onclick="closeChest()">אסוף שלל</button>
+        </div>
+    </div>
+
+    <div id="combatModal" class="modal-overlay">
+        <div class="modal-content center-text">
+            <h3 class="modal-title">⚔️ אויבים לפניך!</h3>
+            <p>מצאת אדמה חדשה, אך היא מוחזקת על ידי אויבים. האם תרצה לתקוף?</p>
+            <div class="combat-stats">
+                <div class="stat-box player">
+                    <div style="font-size:14px; color:#555;">הכוח שלי</div>
+                    <div id="combat-player-power" style="color:var(--dark);">0 ⚔️</div>
+                </div>
+                <div class="stat-box enemy">
+                    <div style="font-size:14px; color:#555;">כוח אויב</div>
+                    <div id="combat-enemy-power">0 ⚔️</div>
+                </div>
+            </div>
+            <div class="combat-actions">
+                <button class="retreat-btn" onclick="retreat()">לסגת</button>
+                <button id="btn-combat-attack" class="attack-btn" onclick="attack()">הסתער!</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- הגדרות משחק בסיסיות ---
+    const basicRes = { wood: 'עץ', clay: 'חימר', wheat: 'חיטה', wool: 'צמר', ore: 'עפרה' };
+    const advRes = { plank: 'קרש', brick: 'לבנה', bread: 'לחם', cloth: 'בד', steel: 'פלדה' };
+    const icons = { wood:'🌲', clay:'🟤', wheat:'🌾', wool:'🐑', ore:'⛰️', plank:'🪵', brick:'🧱', bread:'🍞', cloth:'🧵', steel:'⚙️', empty:'🏳️' };
+    const craftMap = { plank: 'wood', brick: 'clay', bread: 'wheat', cloth: 'wool', steel: 'ore' };
+    const validTileNumbers = [4, 5, 6, 7, 8, 9]; 
+    const prices = { basic: { sell: 1, buy: 2 }, adv: { sell: 3, buy: 6 } };
+
+    let resources = { 
+        coins: 0, research: 0, maxPop: 5,
+        wood: 6, clay: 6, wheat: 6, wool: 3, ore: 0,
+        plank: 0, brick: 0, bread: 0, cloth: 0, steel: 0,
+        people: 0, swords: 0, armors: 0, shields: 0, bows: 0, horses: 0,
+        archers: 0, warriors: 0, knights: 0
+    };
+    
+    let townHallLevel = 1;
+    let libraryLevel = 1;
+    let currentEnemyPower = 0;
+    let discoveredTilesCount = 0;
+    
+    let autoRollTimer = null;
+    let isAutoRolling = false;
+    let isPausedForEvent = false; 
+    let isResExpanded = false;
+    
+    let forcedNextRoll = null; 
+    let isRollLocked = false;
+
+    let tiles = [
+        { id: 1, type: 'wood', number: 6, level: 1 },
+        { id: 2, type: 'clay', number: 7, level: 1 },
+        { id: 3, type: 'wheat', number: 8, level: 1 }
+    ];
+
+    function vibe() { if (navigator.vibrate) navigator.vibrate(15); }
+
+    function toggleResources() {
+        vibe();
+        isResExpanded = !isResExpanded;
+        document.getElementById('collapsible-res').style.display = isResExpanded ? 'flex' : 'none';
+        document.getElementById('res-toggle-icon').style.transform = isResExpanded ? 'translateY(-50%) rotate(180deg)' : 'translateY(-50%) rotate(0deg)';
+    }
+
+    function showFeedback(event, text, type = 'success') {
+        if(!event) return;
+        const floater = document.createElement('div');
+        floater.innerText = text;
+        floater.style.position = 'fixed';
+        
+        let x = event.clientX, y = event.clientY;
+        if(x === undefined && event.touches && event.touches.length > 0) {
+            x = event.touches[0].clientX; y = event.touches[0].clientY;
+        } else if (x === undefined && event.changedTouches) {
+            x = event.changedTouches[0].clientX; y = event.changedTouches[0].clientY;
+        }
+        if(!x) { x = window.innerWidth/2; y = window.innerHeight/2; } 
+        
+        floater.style.left = x + 'px';
+        floater.style.top = (y - 20) + 'px';
+        floater.style.color = type === 'success' ? '#2ecc71' : '#e74c3c';
+        floater.style.fontWeight = '900';
+        floater.style.fontSize = '24px';
+        floater.style.textShadow = '0 2px 4px rgba(0,0,0,0.5), 0 0 2px white';
+        floater.style.pointerEvents = 'none';
+        floater.style.zIndex = '9999';
+        floater.style.transition = 'all 0.8s cubic-bezier(0.25, 1, 0.5, 1)';
+        floater.style.transform = 'translate(-50%, -50%) scale(0.5)';
+        floater.style.opacity = '1';
+        document.body.appendChild(floater);
+        
+        requestAnimationFrame(() => {
+            floater.style.transform = 'translate(-50%, -200%) scale(1.2)';
+            floater.style.opacity = '0';
+        });
+        setTimeout(() => floater.remove(), 800);
+    }
+
+    function getPlayerPower() {
+        return (resources.archers * 1) + (resources.warriors * 2) + (resources.knights * 3);
+    }
+
+    function getPopulation() {
+        return resources.people + resources.archers + resources.warriors + resources.knights;
+    }
+
+    function updateUI() {
+        document.getElementById('res-coins').innerText = resources.coins;
+        document.getElementById('res-research').innerText = resources.research;
+        document.getElementById('res-power').innerText = getPlayerPower();
+        document.getElementById('res-pop').innerText = `${getPopulation()}/${resources.maxPop}`;
+        
+        for (let res in resources) {
+            if(document.getElementById(`res-${res}`)) document.getElementById(`res-${res}`).innerText = resources[res];
+        }
+
+        // --- עירייה ---
+        document.getElementById('th-level').innerText = townHallLevel;
+        document.getElementById('th-prod').innerText = townHallLevel;
+        const thCost = townHallLevel;
+        const canUpgradeTH = resources.plank >= thCost && resources.brick >= thCost && resources.bread >= thCost && resources.cloth >= thCost && resources.steel >= thCost;
+        const thBtn = document.getElementById('btn-upgrade-th');
+        if (canUpgradeTH) thBtn.classList.remove('disabled-btn'); else thBtn.classList.add('disabled-btn');
+        document.getElementById('th-cost-display').innerHTML = `
+            <span class="${resources.plank >= thCost ? '' : 'missing-res'}">${thCost}</span>🪵
+            <span class="${resources.brick >= thCost ? '' : 'missing-res'}">${thCost}</span>🧱
+            <span class="${resources.bread >= thCost ? '' : 'missing-res'}">${thCost}</span>🍞<br>
+            <span class="${resources.cloth >= thCost ? '' : 'missing-res'}">${thCost}</span>🧵
+            <span class="${resources.steel >= thCost ? '' : 'missing-res'}">${thCost}</span>⚙️
+        `;
+
+        // --- ספרייה ---
+        document.getElementById('lib-level').innerText = libraryLevel;
+        document.getElementById('lib-prod').innerText = libraryLevel;
+        const libPlank = 2 * libraryLevel;
+        const libBrick = 2 * libraryLevel;
+        const libSteel = 2 * libraryLevel;
+        const libResearch = 4 * libraryLevel;
+        
+        const canUpgradeLib = resources.plank >= libPlank && resources.brick >= libBrick && resources.steel >= libSteel && resources.research >= libResearch;
+        const libBtn = document.getElementById('btn-upgrade-lib');
+        if (canUpgradeLib) libBtn.classList.remove('disabled-btn'); else libBtn.classList.add('disabled-btn');
+        document.getElementById('lib-cost-display').innerHTML = `
+            <span class="${resources.plank >= libPlank ? '' : 'missing-res'}">${libPlank}</span>🪵
+            <span class="${resources.brick >= libBrick ? '' : 'missing-res'}">${libBrick}</span>🧱<br>
+            <span class="${resources.steel >= libSteel ? '' : 'missing-res'}">${libSteel}</span>⚙️
+            <span class="${resources.research >= libResearch ? '' : 'missing-res'}">${libResearch}</span>🧪
+        `;
+
+        // --- מפעל ---
+        const craftGrid = document.getElementById('crafting-grid');
+        craftGrid.innerHTML = '';
+        for (let adv in advRes) {
+            const basic = craftMap[adv];
+            const canCraft = resources[basic] >= 3;
+            const costClass = canCraft ? '' : 'missing-res';
+            const btnClass = canCraft ? '' : 'disabled-btn';
+            craftGrid.innerHTML += `
+                <div class="craft-card">
+                    <div style="font-size:24px">${icons[adv]}</div>
+                    <div style="font-size:13px; font-weight:bold">${advRes[adv]}</div>
+                    <div style="font-size:11px; color:#7f8c8d;">(<span class="${costClass}">3</span> ${icons[basic]})</div>
+                    <div class="craft-actions">
+                        <button class="craft-btn ${btnClass}" onclick="craft('${adv}', 'single', event)">צור 1</button>
+                        <button class="craft-btn btn-max ${btnClass}" onclick="craft('${adv}', 'max', event)">הכל</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- צבא ---
+        const milGrid = document.getElementById('military-grid');
+        const canSword = resources.steel >= 2;
+        const canArmor = resources.steel >= 2;
+        const canShield = resources.steel >= 4;
+        const canBow = resources.plank >= 3;
+        const canHorse = resources.bread >= 5;
+
+        const canArcher = resources.people >= 1 && resources.bows >= 1;
+        const canWarrior = resources.people >= 1 && resources.swords >= 1 && resources.armors >= 1;
+        const canKnight = resources.people >= 1 && resources.swords >= 1 && resources.armors >= 1 && resources.shields >= 1 && resources.horses >= 1;
+        
+        milGrid.innerHTML = `
+            <div class="craft-card">
+                <div style="font-size:24px">🗡️</div>
+                <div><strong>חרב</strong></div>
+                <div style="font-size:11px; color:#555;">(<span class="${resources.steel >= 2 ? '' : 'missing-res'}">2</span> ⚙️)</div>
+                <div class="craft-actions"><button class="craft-btn ${canSword ? '' : 'disabled-btn'}" onclick="craftMilitary('swords', event)">חשל</button></div>
+            </div>
+            <div class="craft-card">
+                <div style="font-size:24px">🦺</div>
+                <div><strong>שריון</strong></div>
+                <div style="font-size:11px; color:#555;">(<span class="${resources.steel >= 2 ? '' : 'missing-res'}">2</span> ⚙️)</div>
+                <div class="craft-actions"><button class="craft-btn ${canArmor ? '' : 'disabled-btn'}" onclick="craftMilitary('armors', event)">צור</button></div>
+            </div>
+            <div class="craft-card">
+                <div style="font-size:24px">💠</div>
+                <div><strong>מגן</strong></div>
+                <div style="font-size:11px; color:#555;">(<span class="${resources.steel >= 4 ? '' : 'missing-res'}">4</span> ⚙️)</div>
+                <div class="craft-actions"><button class="craft-btn ${canShield ? '' : 'disabled-btn'}" onclick="craftMilitary('shields', event)">צור</button></div>
+            </div>
+            <div class="craft-card">
+                <div style="font-size:24px">🏹</div>
+                <div><strong>קשת (נשק)</strong></div>
+                <div style="font-size:11px; color:#555;">(<span class="${resources.plank >= 3 ? '' : 'missing-res'}">3</span> 🪵)</div>
+                <div class="craft-actions"><button class="craft-btn ${canBow ? '' : 'disabled-btn'}" onclick="craftMilitary('bows', event)">צור</button></div>
+            </div>
+            <div class="craft-card" style="grid-column: 1 / -1;">
+                <div style="font-size:24px">🐎</div>
+                <div><strong>סוס</strong></div>
+                <div style="font-size:11px; color:#555;">(<span class="${resources.bread >= 5 ? '' : 'missing-res'}">5</span> 🍞)</div>
+                <div class="craft-actions"><button class="craft-btn ${canHorse ? '' : 'disabled-btn'}" onclick="craftMilitary('horses', event)">אמן</button></div>
+            </div>
+            
+            <div class="craft-card" style="background:#e8f8f5; border-color:#1abc9c;">
+                <div style="font-size:24px">🎯</div>
+                <div><strong>קשת</strong> (כוח 1)</div>
+                <div style="font-size:11px; color:#555;">(<span class="${resources.people >= 1 ? '' : 'missing-res'}">1</span>👨, <span class="${resources.bows >= 1 ? '' : 'missing-res'}">1</span>🏹)</div>
+                <div class="craft-actions"><button class="craft-btn btn-soldier ${canArcher ? '' : 'disabled-btn'}" onclick="craftMilitary('archers', event)">אמן קשת</button></div>
+            </div>
+            <div class="craft-card" style="background:#fdedec; border-color:#e74c3c;">
+                <div style="font-size:24px">⚔️</div>
+                <div><strong>לוחם</strong> (כוח 2)</div>
+                <div style="font-size:11px; color:#555;">(<span class="${resources.people >= 1 ? '' : 'missing-res'}">1</span>👨, <span class="${resources.swords >= 1 ? '' : 'missing-res'}">1</span>🗡️, <span class="${resources.armors >= 1 ? '' : 'missing-res'}">1</span>🦺)</div>
+                <div class="craft-actions"><button class="craft-btn btn-soldier ${canWarrior ? '' : 'disabled-btn'}" onclick="craftMilitary('warriors', event)">אמן לוחם</button></div>
+            </div>
+            <div class="craft-card" style="grid-column: 1 / -1; background:#f5eef8; border-color:#9b59b6;">
+                <div style="font-size:24px">🏇</div>
+                <div><strong>אביר</strong> (כוח 3)</div>
+                <div style="font-size:11px; color:#555;">(👨+🗡️+🦺+<span class="${resources.shields >= 1 ? '' : 'missing-res'}">1</span>💠+<span class="${resources.horses >= 1 ? '' : 'missing-res'}">1</span>🐎)</div>
+                <div class="craft-actions"><button class="craft-btn btn-soldier ${canKnight ? '' : 'disabled-btn'}" onclick="craftMilitary('knights', event)">אמן אביר</button></div>
+            </div>
+        `;
+
+        // --- שוק ---
+        const marketList = document.getElementById('market-list');
+        marketList.innerHTML = '';
+        for(let basic in basicRes) marketList.innerHTML += createMarketRow(basic, basicRes[basic], prices.basic);
+        for(let adv in advRes) marketList.innerHTML += createMarketRow(adv, advRes[adv], prices.adv);
+
+        // --- מפה ---
+        const board = document.getElementById('board-section');
+        board.innerHTML = '';
+        tiles.forEach((tile, index) => {
+            const isRed = (tile.number === 6 || tile.number === 8) ? 'red' : '';
+            const tileEl = document.createElement('div');
+            tileEl.className = 'tile';
+            tileEl.setAttribute('data-type', tile.type);
+            
+            if (tile.type === 'empty') {
+                let choicesHTML = `<div class="empty-choices">`;
+                for (let b in basicRes) choicesHTML += `<button class="choice-btn" onclick="setTileType(${index}, '${b}', event)">${icons[b]}</button>`;
+                choicesHTML += `</div>`;
+                tileEl.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>🏳️ שטח ריק</strong></div>${choicesHTML}`;
+            } else {
+                const costPlank = tile.level;
+                const costSteel = Math.max(0, tile.level - 1);
+                const canUpgrade = resources.steel >= costSteel && resources.plank >= costPlank;
+                const plankClass = resources.plank >= costPlank ? '' : 'missing-res';
+                const steelClass = resources.steel >= costSteel ? '' : 'missing-res';
+                const btnClass = canUpgrade ? '' : 'disabled-btn';
+                
+                let upgradeText = `שדרג (`;
+                if (costSteel > 0) upgradeText += `<span class="${steelClass}">${costSteel}</span>⚙️, `;
+                upgradeText += `<span class="${plankClass}">${costPlank}</span>🪵)`;
+
+                tileEl.innerHTML = `
+                    <div class="tile-number ${isRed}">${tile.number}</div>
+                    <div class="tile-info"><strong>${icons[tile.type]} ${basicRes[tile.type] || advRes[tile.type]}</strong><br>רמה ${tile.level}</div>
+                    <button class="upgrade-btn ${btnClass}" onclick="upgradeTile(${index}, event)">${upgradeText}</button>
+                `;
+            }
+            board.appendChild(tileEl);
+        });
+    }
+
+    // --- כפתור הקוביה ---
+    const btnRoll = document.getElementById('btn-roll');
+    let pressTimer;
+    let isLongPress = false;
+
+    function startPress(e) {
+        if (btnRoll.disabled) return;
+        isLongPress = false;
+        btnRoll.style.transform = 'scale(0.96)'; 
+        pressTimer = setTimeout(() => {
+            isLongPress = true;
+            btnRoll.style.transform = 'scale(1)';
+            if (!isAutoRolling) { toggleAutoRoll(true); vibe(); }
+        }, 500);
+    }
+    function endPress(e) {
+        clearTimeout(pressTimer);
+        btnRoll.style.transform = 'scale(1)';
+        if (btnRoll.disabled) return;
+        if (!isLongPress) {
+            if (e.cancelable && e.type === 'touchend') e.preventDefault(); 
+            if (isAutoRolling) toggleAutoRoll(false);
+            else { vibe(); rollDice(); }
+        }
+    }
+    function cancelPress() { clearTimeout(pressTimer); btnRoll.style.transform = 'scale(1)'; }
+
+    btnRoll.addEventListener('mousedown', startPress);
+    btnRoll.addEventListener('touchstart', startPress, {passive: true});
+    btnRoll.addEventListener('mouseup', endPress);
+    btnRoll.addEventListener('touchend', endPress);
+    btnRoll.addEventListener('mouseleave', cancelPress);
+    btnRoll.addEventListener('touchcancel', cancelPress);
+    btnRoll.addEventListener('contextmenu', e => { e.preventDefault(); cancelPress(); }); 
+
+    function toggleAutoRoll(forceState) {
+        vibe();
+        isAutoRolling = forceState !== undefined ? forceState : !isAutoRolling;
+        const hint = document.getElementById('dice-hint');
+        if (isAutoRolling) {
+            btnRoll.classList.add('auto-active');
+            hint.innerText = 'מצב אוטומטי (הקלק לעצירה)';
+            startAutoRoll();
+        } else {
+            btnRoll.classList.remove('auto-active');
+            hint.innerText = 'הקלק לזריקה / לחיצה ארוכה לאוטומטי';
+            stopAutoRoll();
+        }
+    }
+
+    function startAutoRoll() {
+        if (!autoRollTimer) {
+            autoRollTimer = setInterval(() => {
+                if (!btnRoll.disabled && !isPausedForEvent) rollDice();
+            }, 1000); 
+        }
+    }
+
+    function stopAutoRoll() { clearInterval(autoRollTimer); autoRollTimer = null; }
+
+    function rollDice() {
+        const display = document.getElementById('dice-result');
+        const log = document.getElementById('action-log');
+        
+        btnRoll.disabled = true;
+        display.classList.add('rolling');
+        log.innerText = "זורק...";
+
+        setTimeout(() => {
+            display.classList.remove('rolling');
+            
+            let sum;
+            if (forcedNextRoll !== null) { 
+                sum = forcedNextRoll; 
+                if(!isRollLocked) forcedNextRoll = null; 
+            } 
+            else { sum = (Math.floor(Math.random() * 6) + 1) + (Math.floor(Math.random() * 6) + 1); }
+            
+            display.innerText = `🎲 ${sum}`;
+            
+            if (sum === 2) {
+                let currentPop = getPopulation();
+                let spaceLeft = resources.maxPop - currentPop;
+                
+                if (spaceLeft > 0) {
+                    let recruited = Math.min(townHallLevel, spaceLeft);
+                    resources.people += recruited;
+                    log.innerText = `יצא 2! העירייה גייסה ${recruited} 👨.`;
+                } else {
+                    log.innerText = `יצא 2! האוכלוסייה מלאה (מקס ${resources.maxPop}).`;
+                }
+            } else if (sum === 3) {
+                resources.research += libraryLevel;
+                log.innerText = `יצא 3! הספרייה ייצרה ${libraryLevel} 🧪.`;
+            } else if (sum === 10) { handleRoll10(log); } 
+            else if (sum === 12) {
+                log.innerText = `יצא 12! מצאת תיבת אוצר!`;
+                isPausedForEvent = true; openModal('chestModal');
+            } else {
+                let produced = [];
+                tiles.forEach(tile => {
+                    if (tile.type !== 'empty' && tile.number === sum) {
+                        resources[tile.type] += tile.level;
+                        produced.push(`${tile.level} ${icons[tile.type]}`);
+                    }
+                });
+                log.innerText = produced.length > 0 ? `הופקו: ${produced.join(', ')}` : "לא הופקו משאבים הפעם.";
+            }
+            btnRoll.disabled = false;
+            updateUI();
+        }, 300);
+    }
+
+    // --- שדרוג מבנים מיוחדים ---
+    function upgradeTownHall(event) {
+        vibe();
+        const cost = townHallLevel;
+        let missing = [];
+        if (resources.plank < cost) missing.push(`${cost - resources.plank} 🪵`);
+        if (resources.brick < cost) missing.push(`${cost - resources.brick} 🧱`);
+        if (resources.bread < cost) missing.push(`${cost - resources.bread} 🍞`);
+        if (resources.cloth < cost) missing.push(`${cost - resources.cloth} 🧵`);
+        if (resources.steel < cost) missing.push(`${cost - resources.steel} ⚙️`);
+
+        if (missing.length === 0) {
+            resources.plank -= cost; resources.brick -= cost; resources.bread -= cost; resources.cloth -= cost; resources.steel -= cost;
+            townHallLevel++;
+            showFeedback(event, `עירייה רמה ${townHallLevel}!`);
+            updateUI();
+        } else { alert(`חסרים משאבים לעירייה!\nחסר לך:\n` + missing.join('\n')); }
+    }
+
+    function upgradeLibrary(event) {
+        vibe();
+        const costPlank = 2 * libraryLevel;
+        const costBrick = 2 * libraryLevel;
+        const costSteel = 2 * libraryLevel;
+        const costResearch = 4 * libraryLevel;
+
+        let missing = [];
+        if (resources.plank < costPlank) missing.push(`${costPlank - resources.plank} 🪵 (קרשים)`);
+        if (resources.brick < costBrick) missing.push(`${costBrick - resources.brick} 🧱 (לבנים)`);
+        if (resources.steel < costSteel) missing.push(`${costSteel - resources.steel} ⚙️ (פלדה)`);
+        if (resources.research < costResearch) missing.push(`${costResearch - resources.research} 🧪 (מחקר)`);
+
+        if (missing.length === 0) {
+            resources.plank -= costPlank; resources.brick -= costBrick; resources.steel -= costSteel; resources.research -= costResearch;
+            libraryLevel++;
+            showFeedback(event, `ספרייה רמה ${libraryLevel}!`);
+            updateUI();
+        } else { alert(`חסרים משאבים לספרייה!\nחסר לך:\n` + missing.join('\n')); }
+    }
+
+    // --- שוק ויצירה ---
+    function createMarketRow(resId, resName, priceData) {
+        const canSell = resources[resId] > 0;
+        const canBuy = resources.coins >= priceData.buy;
+        const currentAmount = resources[resId];
+        return `
+            <div class="market-item">
+                <div class="market-res" title="${resName}">
+                    ${icons[resId]} <span class="market-amt">(יש: ${currentAmount})</span>
+                </div>
+                <div class="market-actions">
+                    <button class="btn-sell ${canSell ? '' : 'disabled-btn'}" onclick="tradeMarket('sell', '${resId}', ${priceData.sell}, event)">מכור (+${priceData.sell}🪙)</button>
+                    <button class="btn-buy ${canBuy ? '' : 'disabled-btn'}" onclick="tradeMarket('buy', '${resId}', ${priceData.buy}, event)">קנה (-${priceData.buy}🪙)</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function tradeMarket(action, resId, amount, event) {
+        vibe();
+        if (action === 'sell') {
+            if (resources[resId] > 0) {
+                resources[resId]--; resources.coins += amount;
+                showFeedback(event, `+${amount}🪙`);
+            } else { alert(`פעולה נכשלה!\nחסר לך 1 ${icons[resId]} למכירה.`); }
+        } else if (action === 'buy') {
+            if (resources.coins >= amount) {
+                resources.coins -= amount; resources[resId]++;
+                showFeedback(event, `+1 ${icons[resId]}`);
+            } else { alert(`חסרים מטבעות!\nחסר לך ${amount - resources.coins} 🪙 להשלמת הקנייה.`); }
+        }
+        updateUI();
+    }
+
+    function craft(advType, mode, event) {
+        vibe();
+        const basicType = craftMap[advType];
+        const availableBasic = resources[basicType];
+        const maxPossible = Math.floor(availableBasic / 3);
+
+        if (maxPossible > 0) {
+            let amountToCraft = (mode === 'max') ? maxPossible : 1;
+            resources[basicType] -= amountToCraft * 3;
+            resources[advType] += amountToCraft;
+            showFeedback(event, `+${amountToCraft} ${icons[advType]}`);
+            updateUI();
+        } else {
+            alert(`חסרים משאבים!\nחסר לך ${3 - availableBasic} ${icons[basicType]} ליצירת פריט זה.`);
+        }
+    }
+
+    function craftMilitary(type, event) {
+        vibe();
+        let missing = [];
+        
+        if (type === 'swords') {
+            if (resources.steel < 2) missing.push('2 ⚙️ (פלדה)');
+            if (missing.length === 0) { resources.steel-=2; resources.swords++; showFeedback(event, '+1 🗡️'); }
+        } else if (type === 'armors') {
+            if (resources.steel < 2) missing.push('2 ⚙️ (פלדה)');
+            if (missing.length === 0) { resources.steel-=2; resources.armors++; showFeedback(event, '+1 🦺'); }
+        } else if (type === 'shields') {
+            if (resources.steel < 4) missing.push('4 ⚙️ (פלדה)');
+            if (missing.length === 0) { resources.steel-=4; resources.shields++; showFeedback(event, '+1 💠'); }
+        } else if (type === 'bows') {
+            if (resources.plank < 3) missing.push('3 🪵 (קרשים)');
+            if (missing.length === 0) { resources.plank-=3; resources.bows++; showFeedback(event, '+1 🏹'); }
+        } else if (type === 'horses') {
+            if (resources.bread < 5) missing.push('5 🍞 (לחם)');
+            if (missing.length === 0) { resources.bread-=5; resources.horses++; showFeedback(event, '+1 🐎'); }
+        } else if (type === 'archers') {
+            if (resources.people < 1) missing.push('1 👨 (איש)');
+            if (resources.bows < 1) missing.push('1 🏹 (קשת)');
+            if (missing.length === 0) { resources.people--; resources.bows--; resources.archers++; showFeedback(event, '+1 🎯'); }
+        } else if (type === 'warriors') {
+            if (resources.people < 1) missing.push('1 👨 (איש)');
+            if (resources.swords < 1) missing.push('1 🗡️ (חרב)');
+            if (resources.armors < 1) missing.push('1 🦺 (שריון)');
+            if (missing.length === 0) { resources.people--; resources.swords--; resources.armors--; resources.warriors++; showFeedback(event, '+1 ⚔️'); }
+        } else if (type === 'knights') {
+            if (resources.people < 1) missing.push('1 👨 (איש)');
+            if (resources.swords < 1) missing.push('1 🗡️ (חרב)');
+            if (resources.armors < 1) missing.push('1 🦺 (שריון)');
+            if (resources.shields < 1) missing.push('1 💠 (מגן)');
+            if (resources.horses < 1) missing.push('1 🐎 (סוס)');
+            if (missing.length === 0) { resources.people--; resources.swords--; resources.armors--; resources.shields--; resources.horses--; resources.knights++; showFeedback(event, '+1 🏇'); }
+        }
+        
+        if (missing.length > 0) alert("חסרים משאבים לפעולה זו!\nחסר לך:\n" + missing.join('\n'));
+        else updateUI();
+    }
+
+    // --- מפה ---
+    function setTileType(index, basicType, event) { 
+        vibe();
+        tiles[index].type = basicType; 
+        showFeedback(event, "נבחר!");
+        updateUI(); 
+    }
+
+    function upgradeTile(index, event) {
+        vibe();
+        const tile = tiles[index];
+        const costPlank = tile.level;
+        const costSteel = Math.max(0, tile.level - 1);
+        let missing = [];
+        
+        if (resources.plank < costPlank) missing.push(`${costPlank - resources.plank} 🪵 (קרשים)`);
+        if (resources.steel < costSteel) missing.push(`${costSteel - resources.steel} ⚙️ (פלדה)`);
+        
+        if (missing.length === 0) {
+            resources.steel -= costSteel; resources.plank -= costPlank;
+            tile.level += 1;
+            showFeedback(event, `רמה ${tile.level}!`);
+            updateUI();
+        } else { alert("חסרים משאבים לשדרוג השטח!\nחסר לך:\n" + missing.join('\n')); }
+    }
+
+    function handleRoll10(logElement) {
+        if (Math.random() < 0.3) {
+            logElement.innerText = "10! מצאת אדמה ריקה! 🎉";
+            addEmptyTile();
+        } else {
+            logElement.innerText = "10! התגלו אויבים...";
+            isPausedForEvent = true; 
+            initiateCombat();
+        }
+    }
+
+    function addEmptyTile() {
+        let randomNumber;
+        let setType = 'empty';
+        
+        if (discoveredTilesCount === 0) { randomNumber = 9; setType = 'ore'; }
+        else if (discoveredTilesCount === 1) { randomNumber = 5; setType = 'wool'; }
+        else if (discoveredTilesCount === 2) { randomNumber = 4; }
+        else {
+            let counts = { 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
+            tiles.forEach(t => { if (counts[t.number] !== undefined) counts[t.number]++; });
+            let minCount = Infinity;
+            for (let num in counts) if (counts[num] < minCount) minCount = counts[num];
+            let rarestNumbers = [];
+            for (let num in counts) if (counts[num] === minCount) rarestNumbers.push(parseInt(num));
+            
+            if (Math.random() < 0.8) randomNumber = rarestNumbers[Math.floor(Math.random() * rarestNumbers.length)];
+            else randomNumber = validTileNumbers[Math.floor(Math.random() * validTileNumbers.length)];
+        }
+        
+        discoveredTilesCount++;
+        tiles.push({ id: Date.now(), type: setType, number: randomNumber, level: 1 });
+        updateUI();
+        if (!isAutoRolling) setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 500);
+    }
+
+    // --- תיבת אוצר ---
+    function openChest() {
+        vibe();
+        document.getElementById('btn-open-chest').style.display = 'none';
+        const animEl = document.getElementById('chest-animation');
+        let ticks = 0;
+        const finalAmount = Math.floor(Math.random() * 91) + 10; 
+        
+        const interval = setInterval(() => {
+            animEl.innerText = (Math.floor(Math.random() * 100) + 10) + "🪙";
+            ticks++;
+            if (ticks > 20) {
+                clearInterval(interval);
+                animEl.innerText = finalAmount + "🪙";
+                animEl.classList.add('chest-success');
+                resources.coins += finalAmount;
+                document.getElementById('action-log').innerText = `פתחת תיבה וקיבלת ${finalAmount}🪙!`;
+                document.getElementById('btn-close-chest').style.display = 'inline-block';
+                updateUI();
+            }
+        }, 50); 
+    }
+
+    function closeChest() {
+        vibe();
+        closeModal('chestModal');
+        isPausedForEvent = false;
+        document.getElementById('btn-open-chest').style.display = 'inline-block';
+        document.getElementById('btn-close-chest').style.display = 'none';
+        const animEl = document.getElementById('chest-animation');
+        animEl.innerText = '❓🪙';
+        animEl.classList.remove('chest-success');
+    }
+
+    // --- קרב ---
+    function initiateCombat() {
+        const minE = 1 + discoveredTilesCount * 1;
+        const maxE = 2 + discoveredTilesCount * 2;
+        currentEnemyPower = Math.floor(Math.random() * (maxE - minE + 1)) + minE;
+        
+        let pPower = getPlayerPower();
+        document.getElementById('combat-player-power').innerText = `${pPower} ⚔️`;
+        document.getElementById('combat-enemy-power').innerText = `${currentEnemyPower} ⚔️`;
+        
+        const attackBtn = document.getElementById('btn-combat-attack');
+        if (pPower === 0) {
+            attackBtn.disabled = true;
+            attackBtn.innerText = "אמן חיילים בשביל להילחם!";
+            attackBtn.style.background = "#bdc3c7";
+        } else {
+            attackBtn.disabled = false;
+            attackBtn.innerText = "הסתער!";
+            attackBtn.style.background = "var(--danger)";
+        }
+        openModal('combatModal');
+    }
+
+    function resolveCombatUI() { closeModal('combatModal'); isPausedForEvent = false; updateUI(); }
+    
+    function retreat() { 
+        vibe();
+        document.getElementById('action-log').innerText = "נסגת מהקרב. האדמה אבדה."; 
+        resolveCombatUI(); 
+    }
+    
+    function takeCasualties(amount) {
+        let totalUnits = resources.archers + resources.warriors + resources.knights;
+        let lost = Math.min(amount, totalUnits);
+        let lostArchers = 0, lostWarriors = 0, lostKnights = 0;
+
+        for(let i=0; i<lost; i++) {
+            let pool = [];
+            if(resources.archers > 0) pool.push('archers');
+            if(resources.warriors > 0) pool.push('warriors');
+            if(resources.knights > 0) pool.push('knights');
+            
+            if(pool.length === 0) break;
+            let pick = pool[Math.floor(Math.random() * pool.length)];
+            resources[pick]--;
+            if(pick === 'archers') lostArchers++;
+            if(pick === 'warriors') lostWarriors++;
+            if(pick === 'knights') lostKnights++;
+        }
+        return lost;
+    }
+
+    function attack() {
+        vibe();
+        const pPower = getPlayerPower() + Math.floor(Math.random() * 6) + 1;
+        const ePower = currentEnemyPower + Math.floor(Math.random() * 6) + 1;
+        let totalUnits = resources.archers + resources.warriors + resources.knights;
+        let logMsg = "";
+        
+        if (pPower >= ePower) {
+            let lossAmount = Math.floor(Math.random() * (totalUnits * 0.3 + 1));
+            let totalLost = takeCasualties(lossAmount);
+            logMsg = `ניצחת בקרב! איבדת ${totalLost} יחידות. שטח חדש התווסף!`;
+            addEmptyTile();
+        } else {
+            let lossAmount = Math.floor(Math.random() * (totalUnits * 0.4 + 1)) + Math.floor(totalUnits * 0.2) + 1;
+            let totalLost = takeCasualties(lossAmount);
+            logMsg = `הפסדת. איבדת ${totalLost} יחידות.`;
+        }
+        document.getElementById('action-log').innerText = logMsg;
+        resolveCombatUI();
+    }
+
+    // --- צ'יטים וחלוניות ---
+    function setNextRoll(event) {
+        vibe();
+        const val = parseInt(document.getElementById('cheat-dice-val').value);
+        if (val >= 2 && val <= 12) {
+            forcedNextRoll = val;
+            isRollLocked = document.getElementById('cheat-roll-persist').checked;
+            showFeedback(event, "✅ הקובייה נטענה!");
+            setTimeout(() => closeModal('menuModal'), 500);
+        } else { alert("אנא הכנס מספר חוקי בין 2 ל-12."); }
+    }
+
+    function clearForcedRoll(event) {
+        vibe();
+        forcedNextRoll = null;
+        isRollLocked = false;
+        document.getElementById('cheat-roll-persist').checked = false;
+        showFeedback(event, "✅ בוטל!");
+        setTimeout(() => closeModal('menuModal'), 500);
+    }
+
+    function addCheatCoins(event) {
+        vibe();
+        const val = parseInt(document.getElementById('cheat-coins-val').value) || 1000;
+        resources.coins += val;
+        showFeedback(event, `+${val}🪙`);
+        updateUI();
+    }
+
+    function cheatAddLand(event) {
+        vibe();
+        showFeedback(event, "🌍 שטח נוצר!");
+        addEmptyTile();
+        setTimeout(() => closeModal('menuModal'), 500);
+    }
+
+    function openModal(id) { vibe(); document.getElementById(id).style.display = 'flex'; updateUI(); }
+    function closeModal(id) { vibe(); document.getElementById(id).style.display = 'none'; }
+
+    // אתחול
+    updateUI();
+</script>
+
+</body>
+</html>

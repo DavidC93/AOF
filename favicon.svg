@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1a3e"/>
+      <stop offset="100%" stop-color="#0b1020"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffd700"/>
+      <stop offset="100%" stop-color="#b8860b"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4a90d9"/>
+      <stop offset="100%" stop-color="#2c5282"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="url(#bg)"/>
+  <!-- Shield -->
+  <path d="M32 12 L48 20 L48 36 Q48 48 32 54 Q16 48 16 36 L16 20 Z" fill="url(#shield)" stroke="#ffd700" stroke-width="2"/>
+  <!-- Crossed swords -->
+  <line x1="22" y1="18" x2="42" y2="46" stroke="url(#gold)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="42" y1="18" x2="22" y2="46" stroke="url(#gold)" stroke-width="3" stroke-linecap="round"/>
+  <!-- Sword hilts -->
+  <line x1="19" y1="21" x2="25" y2="15" stroke="#ffd700" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="39" y1="15" x2="45" y2="21" stroke="#ffd700" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Crown on top -->
+  <path d="M26 16 L29 10 L32 14 L35 10 L38 16" fill="none" stroke="#ffd700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

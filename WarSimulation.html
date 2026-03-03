@@ -1,0 +1,1665 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>סימולציית לחימה - מובייל (אנכי)</title>
+  <style>
+    :root{
+      --bg:#0b1020; --text:#e9eefc; --muted:#a8b3d6;
+      --glass: rgba(0,0,0,.38);
+      --vh: 1vh;
+    }
+    * { box-sizing:border-box; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial; }
+    body{
+      margin:0; color:var(--text);
+      background: radial-gradient(1200px 500px at 50% 0%, #17214a 0%, var(--bg) 55%);
+      overflow:hidden;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    .app{ position:relative; width:100%; height: calc(var(--vh) * 100); }
+    .stage{ position:absolute; inset:0; padding:10px; }
+    canvas{
+      width:100%; height:100%;
+      display:block; border-radius:16px;
+      background:
+        linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.40)),
+        radial-gradient(900px 340px at 50% 85%, rgba(255,255,255,.06), rgba(255,255,255,0));
+      border: 1px solid rgba(255,255,255,.08);
+    }
+
+    .hud{
+      position:absolute; top:14px; left:14px; right:14px;
+      display:flex; gap:10px; align-items:flex-start; justify-content:space-between;
+      pointer-events:none;
+    }
+    .badge{
+      background: var(--glass);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding: 8px 10px;
+      font-size: 13px;
+      color: var(--muted);
+      backdrop-filter: blur(6px);
+      max-width: 52%;
+    }
+    .badge b{ color: var(--text); }
+
+    .hudControls{
+      pointer-events:auto;
+      display:flex; gap:8px; align-items:center;
+    }
+    .hudControls button{
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.10);
+      color: var(--text);
+      cursor:pointer;
+      font-size: 13px;
+    }
+    .hudControls button:active{ transform: translateY(1px); }
+    .hudControls .primary{ background: rgba(106,167,255,.20); }
+
+    .hudHint{
+      position:absolute; bottom:16px; left:14px; right:14px;
+      display:flex; justify-content:center; pointer-events:none; opacity:.95;
+    }
+    .hintChip{
+      background: rgba(0,0,0,.32);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--muted);
+      backdrop-filter: blur(6px);
+      text-align:center;
+    }
+
+    /* Bottom sheet menu */
+    .menu{
+      position:absolute; left:0; right:0; bottom:0;
+      transform: translateY(0%);
+      transition: transform .25s ease, opacity .25s ease;
+      opacity: 1; pointer-events:auto;
+      padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+    }
+    .menu.closed{ transform: translateY(110%); opacity:0; pointer-events:none; }
+
+    .sheet{
+      margin: 0 auto; max-width: 900px;
+      background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 18px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    .sheetHeader{
+      padding: 10px 12px;
+      display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+    }
+    .sheetHeader h2{ margin:0; font-size:14px; color: var(--text); }
+    .stats{
+      font-size: 12px; color: var(--muted); line-height: 1.35;
+      text-align:left; direction:rtl;
+    }
+    .sheetBody{ padding:12px; display:grid; gap:10px; }
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .card{
+      background: rgba(0,0,0,.20);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .cardTitle{ font-size:13px; color: var(--text); margin:0 0 8px 0; }
+    .row{ display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; }
+    label{ display:flex; flex-direction:column; gap:6px; font-size:12px; color: var(--muted); }
+    input[type="number"]{
+      width:100%; padding:10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.25);
+      color: var(--text);
+      outline:none; font-size:14px;
+    }
+    .actions{
+      display:flex; gap:10px; flex-wrap:wrap;
+      justify-content:space-between; align-items:center;
+      padding: 10px 12px 12px;
+      border-top: 1px solid rgba(255,255,255,.10);
+    }
+    .actions button{
+      flex:1; min-width:120px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(106,167,255,.22);
+      color: var(--text);
+      cursor:pointer; font-size: 14px;
+    }
+    .actions button.secondary{ background: rgba(255,255,255,.10); }
+    .actions button:active{ transform: translateY(1px); }
+
+    .micro{ font-size:12px; color: var(--muted); padding: 0 12px 12px; line-height:1.35; }
+    .summary{
+      font-size: 12px;
+      color: var(--muted);
+      padding: 10px 12px 12px;
+      border-top: 1px solid rgba(255,255,255,.10);
+      line-height: 1.45;
+      white-space: pre-line;
+    }
+
+    /* ===== Stats modal ===== */
+    .modal{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(6px);
+      display:flex;
+      align-items:flex-end;
+      justify-content:center;
+      padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+      z-index: 50;
+    }
+    .modal.hidden{ display:none; }
+    .modalCard{
+      width: 100%;
+      max-width: 980px;
+      max-height: 86vh;
+      overflow:auto;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: 0 18px 40px rgba(0,0,0,.45);
+    }
+    .modalHeader{
+      position: sticky;
+      top: 0;
+      background: rgba(10,14,28,.75);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      padding: 10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      z-index: 2;
+    }
+    .modalHeader h3{ margin:0; font-size: 14px; color: var(--text); }
+    .modalHeader .closeBtn{
+      border-radius: 12px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.10);
+      color: var(--text);
+      cursor:pointer;
+      font-size: 13px;
+    }
+    .modalBody{
+      padding: 12px;
+      display:grid;
+      gap: 10px;
+    }
+    .typeGrid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 880px){
+      .typeGrid{ grid-template-columns: repeat(3, 1fr); }
+    }
+    .typeCard{
+      background: rgba(0,0,0,.22);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .typeCard h4{
+      margin: 0 0 8px 0;
+      font-size: 13px;
+      color: var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 8px;
+    }
+    .miniNote{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      margin-top: 6px;
+    }
+    .fields{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .fields label{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .fields input{
+      margin-top: 6px;
+    }
+    .modalActions{
+      position: sticky;
+      bottom: 0;
+      background: rgba(10,14,28,.75);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid rgba(255,255,255,.10);
+      padding: 10px 12px;
+      display:flex;
+      gap:10px;
+      z-index: 2;
+    }
+    .modalActions button{
+      flex:1;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      color: var(--text);
+      cursor:pointer;
+      font-size: 14px;
+      background: rgba(106,167,255,.22);
+    }
+    .modalActions button.secondary{ background: rgba(255,255,255,.10); }
+    .modalActions button.danger{ background: rgba(255,110,110,.18); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="stage">
+      <canvas id="c"></canvas>
+
+      <div class="hud">
+        <div id="status" class="badge"><b>סטטוס:</b> מוכן</div>
+        <div id="score" class="badge"><b>שדה קרב:</b> אין קרב פעיל</div>
+        <div class="hudControls" id="hudControls" style="display:none;">
+          <button id="statsSmall" class="secondary">סטטים</button>
+          <button id="pauseSmall" class="secondary">השהה</button>
+          <button id="resetSmall" class="primary">איפוס</button>
+        </div>
+      </div>
+
+      <div class="hudHint" id="hudHint" style="display:none;">
+        <div class="hintChip">אתה למטה • האויב למעלה • צבעי צוות מודגשים יותר • נזק מוצג עם ספרה עשרונית</div>
+      </div>
+    </div>
+
+    <div id="menu" class="menu">
+      <div class="sheet">
+        <div class="sheetHeader">
+          <h2>הגדרות קרב</h2>
+          <div class="stats" id="statsLines">
+            <div id="line_warrior"></div>
+            <div id="line_knight"></div>
+            <div id="line_archer"></div>
+          </div>
+        </div>
+
+        <div class="sheetBody">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardTitle">היחידות שלי (למטה)</div>
+              <div class="row">
+                <label>לוחם <input id="p_warrior" type="number" min="0" max="30" value="3"></label>
+                <label>אביר <input id="p_knight"  type="number" min="0" max="30" value="2"></label>
+                <label>קשת  <input id="p_archer"  type="number" min="0" max="30" value="2"></label>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="cardTitle">היחידות של האויב (למעלה)</div>
+              <div class="row">
+                <label>לוחם <input id="e_warrior" type="number" min="0" max="30" value="3"></label>
+                <label>אביר <input id="e_knight"  type="number" min="0" max="30" value="2"></label>
+                <label>קשת  <input id="e_archer"  type="number" min="0" max="30" value="2"></label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="start">הפעלה</button>
+          <button id="openStats" class="secondary">סטטים</button>
+          <button id="resetMenu" class="secondary">איפוס</button>
+        </div>
+
+        <div class="micro">
+          • התפריט נסגר בתחילת משחק ונפתח בסיום.<br/>
+          • טווחים במטרים: 1 מטר = 30 פיקסלים.
+        </div>
+
+        <div id="summary" class="summary" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Modal -->
+  <div id="statsModal" class="modal hidden" aria-hidden="true">
+    <div class="modalCard" role="dialog" aria-modal="true" aria-label="עריכת סטטים">
+      <div class="modalHeader">
+        <h3>עריכת סטטים לכל יחידה</h3>
+        <button id="closeStats" class="closeBtn">סגור</button>
+      </div>
+
+      <div class="modalBody">
+        <div class="miniNote">
+          • אפשר לשנות הכל: חיים/התקפה/קצב/טווח/מהירות/דיוק/שריון/חדירה.<br/>
+          • אם הקרב רץ – הוא יושהה אוטומטית בזמן העריכה.
+        </div>
+
+        <div class="typeGrid">
+          <div class="typeCard" data-type="warrior">
+            <h4>לוחם</h4>
+            <div class="fields">
+              <label>חיים (HP) <input type="number" step="0.1" data-field="hp"></label>
+              <label>התקפה (ATK) <input type="number" step="0.1" data-field="atk"></label>
+              <label>קצב התקפה (שניות) <input type="number" step="0.1" data-field="rate"></label>
+              <label>טווח (מטר) <input type="number" step="0.1" data-field="range_m"></label>
+              <label>מהירות <input type="number" step="0.1" data-field="speedStat"></label>
+              <label>דיוק (%) <input type="number" step="1" data-field="accPct"></label>
+              <label>שריון (0-100) <input type="number" step="1" data-field="armor"></label>
+              <label>חדירה (Pen) <input type="number" step="1" data-field="pen"></label>
+            </div>
+          </div>
+
+          <div class="typeCard" data-type="knight">
+            <h4>אביר</h4>
+            <div class="fields">
+              <label>חיים (HP) <input type="number" step="0.1" data-field="hp"></label>
+              <label>התקפה (ATK) <input type="number" step="0.1" data-field="atk"></label>
+              <label>קצב התקפה (שניות) <input type="number" step="0.1" data-field="rate"></label>
+              <label>טווח (מטר) <input type="number" step="0.1" data-field="range_m"></label>
+              <label>מהירות <input type="number" step="0.1" data-field="speedStat"></label>
+              <label>דיוק (%) <input type="number" step="1" data-field="accPct"></label>
+              <label>שריון (0-100) <input type="number" step="1" data-field="armor"></label>
+              <label>חדירה (Pen) <input type="number" step="1" data-field="pen"></label>
+            </div>
+          </div>
+
+          <div class="typeCard" data-type="archer">
+            <h4>קשת</h4>
+            <div class="fields">
+              <label>חיים (HP) <input type="number" step="0.1" data-field="hp"></label>
+              <label>התקפה (ATK) <input type="number" step="0.1" data-field="atk"></label>
+              <label>קצב התקפה (שניות) <input type="number" step="0.1" data-field="rate"></label>
+              <label>טווח (מטר) <input type="number" step="0.1" data-field="range_m"></label>
+              <label>מהירות <input type="number" step="0.1" data-field="speedStat"></label>
+              <label>דיוק (%) <input type="number" step="1" data-field="accPct"></label>
+              <label>שריון (0-100) <input type="number" step="1" data-field="armor"></label>
+              <label>חדירה (Pen) <input type="number" step="1" data-field="pen"></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modalActions">
+        <button id="saveStats">שמירה</button>
+        <button id="resetStatsDefaults" class="danger">איפוס לברירת מחדל</button>
+        <button id="cancelStats" class="secondary">ביטול</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ====== Mobile viewport fix ======
+  function setVh() {
+    document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+  }
+  window.addEventListener('resize', setVh);
+  setVh();
+
+  // ====== Game constants ======
+  const METER_PX = 30;
+  const BASE_MOVE_PX_PER_SEC = 70;
+
+  // Slow-mo on finish
+  let timeScale = 1;
+  let ending = false;
+  let endTimer = 0;
+
+  // ===== Team style (more pronounced) =====
+  const TEAM_STYLE = {
+    player: {
+      glow: "rgba(150,220,255,.75)",
+      ring: "rgba(255,255,255,.96)",
+      hpStroke: "rgba(220,245,255,.75)",
+      hpBack: "rgba(80,160,255,.14)",
+      tint: "rgba(80,180,255,.16)",
+      arrow: "rgba(200,245,255,.95)",
+    },
+    enemy: {
+      glow: "rgba(255,110,110,.80)",
+      ring: "rgba(255,85,85,.98)",
+      hpStroke: "rgba(255,140,140,.78)",
+      hpBack: "rgba(255,110,110,.14)",
+      tint: "rgba(255,80,80,.22)",
+      arrow: "rgba(255,160,160,.95)",
+    }
+  };
+
+  // ===== Unit stats (mutable via modal) =====
+  const UNIT_TYPES = {
+    warrior: { name:"לוחם",  hp:10, atk:2, rate:1.0, range_m:1,  speedStat:1.0, acc:0.90, armor:10, pen:0,  shape:"circle",   color:"#6aa7ff" },
+    knight:  { name:"אביר",   hp:20, atk:5, rate:1.2, range_m:2,  speedStat:2.2, acc:0.80, armor:20, pen:0,  shape:"square",   color:"#9aa7ff" },
+    archer:  { name:"קשת",    hp:8,  atk:3, rate:1.5, range_m:10, speedStat:1.2, acc:0.85, armor:5,  pen:10, shape:"triangle", color:"#6ff0b0", projectile:true }
+  };
+
+  // Keep defaults for "Reset"
+  const DEFAULT_UNIT_TYPES = JSON.parse(JSON.stringify(UNIT_TYPES));
+  const TYPE_KEYS = ["warrior","knight","archer"];
+
+  // ===== DOM =====
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+
+  const menuEl = document.getElementById("menu");
+  const statusEl = document.getElementById("status");
+  const scoreEl = document.getElementById("score");
+  const hudControls = document.getElementById("hudControls");
+  const hudHint = document.getElementById("hudHint");
+  const summaryEl = document.getElementById("summary");
+
+  const lineWarrior = document.getElementById("line_warrior");
+  const lineKnight  = document.getElementById("line_knight");
+  const lineArcher  = document.getElementById("line_archer");
+
+  const inputs = {
+    pw: document.getElementById("p_warrior"),
+    pk: document.getElementById("p_knight"),
+    pa: document.getElementById("p_archer"),
+    ew: document.getElementById("e_warrior"),
+    ek: document.getElementById("e_knight"),
+    ea: document.getElementById("e_archer"),
+  };
+
+  const btnStart = document.getElementById("start");
+  const btnResetMenu = document.getElementById("resetMenu");
+  const btnPauseSmall = document.getElementById("pauseSmall");
+  const btnResetSmall = document.getElementById("resetSmall");
+  const btnOpenStats = document.getElementById("openStats");
+  const btnStatsSmall = document.getElementById("statsSmall");
+
+  // Modal controls
+  const statsModal = document.getElementById("statsModal");
+  const btnCloseStats = document.getElementById("closeStats");
+  const btnCancelStats = document.getElementById("cancelStats");
+  const btnSaveStats = document.getElementById("saveStats");
+  const btnResetStatsDefaults = document.getElementById("resetStatsDefaults");
+
+  function resizeCanvas() {
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+
+  // ====== State ======
+  let units = [];
+  let projectiles = [];
+  let effects = [];     // slash / impact / dust
+  let floaters = [];    // damage numbers / miss
+  let running = false;
+  let paused = false;
+  let lastT = 0;
+  let battleOver = false;
+  let wasPausedBeforeModal = false;
+
+  // Battle statistics
+  let battleStats = null;
+
+  function makeStats() {
+    const initSide = () => ({
+      hits: 0, misses: 0, damage: 0,
+      byType: {
+        warrior: { hits:0, misses:0, damage:0 },
+        knight:  { hits:0, misses:0, damage:0 },
+        archer:  { hits:0, misses:0, damage:0 },
+      }
+    });
+    return { player: initSide(), enemy: initSide() };
+  }
+
+  // ===== helpers =====
+  function rand(min, max){ return Math.random() * (max - min) + min; }
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+
+  function setMenuOpen(open){
+    menuEl.classList.toggle("closed", !open);
+    hudControls.style.display = open ? "none" : "flex";
+    hudHint.style.display = open ? "none" : "flex";
+  }
+
+  function showSummary(textOrNull){
+    if(!textOrNull){
+      summaryEl.style.display = "none";
+      summaryEl.textContent = "";
+      return;
+    }
+    summaryEl.style.display = "block";
+    summaryEl.textContent = textOrNull;
+  }
+
+  function renderStatsLines(){
+    const w = UNIT_TYPES.warrior;
+    const k = UNIT_TYPES.knight;
+    const a = UNIT_TYPES.archer;
+
+    lineWarrior.textContent =
+      `${w.name} חיים ${w.hp} | התקפה ${w.atk} | ${w.rate}s | טווח ${w.range_m}m | מהירות ${w.speedStat} | דיוק ${Math.round(w.acc*100)}% | שריון ${w.armor} | חדירה ${w.pen||0}`;
+
+    lineKnight.textContent =
+      `${k.name} חיים ${k.hp} | התקפה ${k.atk} | ${k.rate}s | טווח ${k.range_m}m | מהירות ${k.speedStat} | דיוק ${Math.round(k.acc*100)}% | שריון ${k.armor} | חדירה ${k.pen||0}`;
+
+    lineArcher.textContent =
+      `${a.name} חיים ${a.hp} | התקפה ${a.atk} | ${a.rate}s | טווח ${a.range_m}m | מהירות ${a.speedStat} | דיוק ${Math.round(a.acc*100)}% | שריון ${a.armor} | חדירה ${a.pen||0}`;
+  }
+  renderStatsLines();
+
+  // menu open initially
+  setMenuOpen(true);
+  showSummary(null);
+
+  function nearestEnemy(u){
+    let best=null, bestD=Infinity;
+    for(const e of units){
+      if(!e.alive || e.team===u.team) continue;
+      const d = dist(u,e);
+      if(d<bestD){ bestD=d; best=e; }
+    }
+    return best;
+  }
+
+  function aliveCounts(){
+    let p=0,e=0;
+    for(const u of units){
+      if(!u.alive) continue;
+      (u.team==="player") ? p++ : e++;
+    }
+    return {p,e};
+  }
+
+  function makeUnit(typeKey, team, x, y){
+    const t = UNIT_TYPES[typeKey];
+    return {
+      id: (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)),
+      typeKey, team,
+      x, y, r: 14,
+
+      hp: Number(t.hp), maxHp: Number(t.hp),
+      atk: Number(t.atk),
+      rate: Number(t.rate),
+      range: Number(t.range_m) * METER_PX,
+
+      speedStat: Number(t.speedStat),
+      moveSpeed: BASE_MOVE_PX_PER_SEC * Number(t.speedStat),
+
+      acc: Number(t.acc),
+      armor: Number(t.armor),
+      pen: Number(t.pen || 0),
+
+      cooldown: rand(0, 0.5),
+      alive: true,
+
+      color: t.color,
+      shape: t.shape,
+      projectile: !!t.projectile,
+
+      // melee anim
+      meleeAnimT: 0,
+      meleeAnimDur: 0.16,
+      lungeDx: 0,
+      lungeDy: 0,
+
+      // hit flash
+      hitFlashT: 0
+    };
+  }
+
+  function spawnTeam(team, counts){
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+
+    const total = counts.warrior + counts.knight + counts.archer;
+    if(total<=0) return;
+
+    const leftPad = 28;
+    const rightPad = 28;
+    const usableW = Math.max(200, w - leftPad - rightPad);
+
+    const xPositions = [];
+    for(let i=0;i<total;i++){
+      const t = total===1 ? 0.5 : (i/(total-1));
+      xPositions.push(leftPad + t*usableW + rand(-10,10));
+    }
+
+    const baseY = team==="player" ? (h - 90) : 90;
+
+    const order = [];
+    for(let i=0;i<counts.warrior;i++) order.push("warrior");
+    for(let i=0;i<counts.knight;i++)  order.push("knight");
+    for(let i=0;i<counts.archer;i++)  order.push("archer");
+
+    for(let i=order.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [order[i],order[j]]=[order[j],order[i]];
+    }
+
+    for(let i=0;i<order.length;i++){
+      const key = order[i];
+      const u = makeUnit(key, team, xPositions[i], baseY + rand(-10,10));
+      units.push(u);
+    }
+  }
+
+  function applyStatsToExistingUnits(){
+    // update existing units to new UNIT_TYPES (useful if saved mid-fight)
+    for(const u of units){
+      const t = UNIT_TYPES[u.typeKey];
+      const oldMax = u.maxHp || 1;
+      const pct = clamp(u.hp / oldMax, 0, 1);
+
+      u.maxHp = Number(t.hp);
+      u.hp = clamp(pct * u.maxHp, 0, u.maxHp);
+
+      u.atk = Number(t.atk);
+      u.rate = Number(t.rate);
+      u.range = Number(t.range_m) * METER_PX;
+      u.speedStat = Number(t.speedStat);
+      u.moveSpeed = BASE_MOVE_PX_PER_SEC * u.speedStat;
+      u.acc = Number(t.acc);
+      u.armor = Number(t.armor);
+      u.pen = Number(t.pen || 0);
+
+      u.color = t.color;
+      u.shape = t.shape;
+      u.projectile = !!t.projectile;
+
+      u.cooldown = Math.min(u.cooldown, u.rate);
+    }
+  }
+
+  function resetBattle(){
+    units = [];
+    projectiles = [];
+    effects = [];
+    floaters = [];
+    running = false;
+    paused = false;
+    lastT = 0;
+    battleOver = false;
+
+    timeScale = 1;
+    ending = false;
+    endTimer = 0;
+
+    battleStats = null;
+
+    statusEl.innerHTML = "<b>סטטוס:</b> מוכן";
+    scoreEl.innerHTML = "<b>שדה קרב:</b> אין קרב פעיל";
+
+    setMenuOpen(true);
+    showSummary(null);
+    draw();
+  }
+
+  function buildBattleFromUI(){
+    const pCounts = {
+      warrior: Math.max(0, parseInt(inputs.pw.value||"0",10)),
+      knight:  Math.max(0, parseInt(inputs.pk.value||"0",10)),
+      archer:  Math.max(0, parseInt(inputs.pa.value||"0",10)),
+    };
+    const eCounts = {
+      warrior: Math.max(0, parseInt(inputs.ew.value||"0",10)),
+      knight:  Math.max(0, parseInt(inputs.ek.value||"0",10)),
+      archer:  Math.max(0, parseInt(inputs.ea.value||"0",10)),
+    };
+
+    const pTotal = pCounts.warrior + pCounts.knight + pCounts.archer;
+    const eTotal = eCounts.warrior + eCounts.knight + eCounts.archer;
+    if(pTotal===0 || eTotal===0){
+      alert("כדי להתחיל קרב צריך לבחור לפחות יחידה אחת לכל צד.");
+      return false;
+    }
+
+    units = [];
+    projectiles = [];
+    effects = [];
+    floaters = [];
+    battleOver = false;
+
+    timeScale = 1;
+    ending = false;
+    endTimer = 0;
+
+    battleStats = makeStats();
+
+    spawnTeam("enemy", eCounts);
+    spawnTeam("player", pCounts);
+
+    const {p,e} = aliveCounts();
+    scoreEl.innerHTML = `<b>יחידות חיות:</b> אני ${p} | אויב ${e}`;
+    statusEl.innerHTML = "<b>סטטוס:</b> הקרב התחיל!";
+    return true;
+  }
+
+  // ===== FX =====
+  function addSlashEffect(x,y, dirX,dirY){
+    const n = Math.hypot(dirX,dirY) || 1;
+    effects.push({ type:"slash", x,y, dx:dirX/n, dy:dirY/n, t:0.14, dur:0.14 });
+  }
+  function addImpactEffect(x,y){
+    effects.push({
+      type:"impact",
+      x, y,
+      t: 0.18,
+      dur: 0.18,
+      sparks: Array.from({length: 7}, () => {
+        const a = rand(0, Math.PI*2);
+        return { dx: Math.cos(a), dy: Math.sin(a), s: rand(40, 95) };
+      })
+    });
+  }
+  function addDustEffect(x,y){
+    effects.push({ type:"dust", x,y, t:0.20, dur:0.20 });
+  }
+  function addFloater(x,y, text, kind){
+    floaters.push({
+      x, y,
+      text,
+      kind,          // "dmg" | "miss"
+      t: 0.75,
+      dur: 0.75,
+      vx: rand(-18, 18),
+      vy: rand(-70, -95),
+      scale0: kind==="dmg" ? 1.1 : 1.0
+    });
+  }
+
+  // ===== Combat helpers =====
+  function tryHit(attacker){
+    return Math.random() <= attacker.acc;
+  }
+
+  function round1(x){
+    return Math.round(x * 10) / 10;
+  }
+
+  function computeDamage(attacker, target){
+    const effectiveArmor = Math.max(0, target.armor - (attacker.pen || 0));
+    const mult = clamp(1 - (effectiveArmor / 100), 0, 1);
+    let dmg = attacker.atk * mult;
+
+    // keep fights meaningful
+    dmg = Math.max(0.5, dmg);
+
+    // one decimal
+    dmg = round1(dmg);
+
+    return { dmg, effectiveArmor };
+  }
+
+  function knockback(target, awayDx, awayDy, strength){
+    const len = Math.hypot(awayDx, awayDy) || 1;
+    const kx = (awayDx/len) * strength;
+    const ky = (awayDy/len) * strength;
+
+    target.x += kx;
+    target.y += ky;
+
+    const rect = canvas.getBoundingClientRect();
+    target.x = clamp(target.x, 22, rect.width - 22);
+    target.y = clamp(target.y, 70, rect.height - 40);
+  }
+
+  function statAddHit(attacker, dmg){
+    const side = battleStats?.[attacker.team];
+    if(!side) return;
+    side.hits += 1;
+    side.damage += dmg;
+    side.byType[attacker.typeKey].hits += 1;
+    side.byType[attacker.typeKey].damage += dmg;
+  }
+  function statAddMiss(attacker){
+    const side = battleStats?.[attacker.team];
+    if(!side) return;
+    side.misses += 1;
+    side.byType[attacker.typeKey].misses += 1;
+  }
+
+  function applyHit(attacker, target, hitX, hitY, awayDx, awayDy){
+    if(!target.alive) return;
+
+    const { dmg } = computeDamage(attacker, target);
+
+    target.hp = round1(target.hp - dmg);
+    target.hitFlashT = Math.max(target.hitFlashT, 0.10);
+
+    addImpactEffect(hitX, hitY);
+    addFloater(target.x, target.y - target.r - 16, `-${dmg.toFixed(1)}`, "dmg");
+
+    knockback(target, awayDx, awayDy, rand(5, 9));
+
+    statAddHit(attacker, dmg);
+
+    if(target.hp <= 0){
+      target.hp = 0;
+      target.alive = false;
+    }
+  }
+
+  function applyMiss(attacker, target, missX, missY){
+    addDustEffect(missX, missY);
+    addFloater(target.x, target.y - target.r - 16, "פספוס", "miss");
+    statAddMiss(attacker);
+  }
+
+  // ===== Update =====
+  function update(dt){
+    if(battleOver) return;
+
+    for(const f of floaters){
+      f.t -= dt;
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      f.vx *= (1 - 1.5*dt);
+      f.vy *= (1 - 1.2*dt);
+    }
+    floaters = floaters.filter(f => f.t > 0);
+
+    for(const fx of effects) fx.t -= dt;
+    effects = effects.filter(fx => fx.t > 0);
+
+    for(const u of units){
+      if(!u.alive) continue;
+
+      if(u.meleeAnimT>0) u.meleeAnimT = Math.max(0, u.meleeAnimT - dt);
+      if(u.hitFlashT>0) u.hitFlashT = Math.max(0, u.hitFlashT - dt);
+
+      const enemy = nearestEnemy(u);
+      if(!enemy) continue;
+
+      const d = dist(u,enemy);
+
+      if(d > u.range){
+        const dx = enemy.x - u.x;
+        const dy = enemy.y - u.y;
+        const len = Math.hypot(dx,dy) || 1;
+
+        u.x += (dx/len) * u.moveSpeed * dt;
+        u.y += (dy/len) * u.moveSpeed * dt;
+
+        const rect = canvas.getBoundingClientRect();
+        u.x = clamp(u.x, 22, rect.width - 22);
+        u.y = clamp(u.y, 70, rect.height - 40);
+
+      } else {
+        u.cooldown -= dt;
+        if(u.cooldown <= 0){
+          u.cooldown = u.rate;
+
+          if(u.projectile){
+            const willHit = tryHit(u);
+
+            const missOffset = 38;
+            const aimX = willHit ? null : (enemy.x + rand(-missOffset, missOffset));
+            const aimY = willHit ? null : (enemy.y + rand(-missOffset, missOffset));
+
+            projectiles.push({
+              x:u.x, y:u.y,
+              shooterId: u.id,
+              shooterType: u.typeKey,
+              shooterTeam: u.team,
+              targetId: enemy.id,
+              speed: 440,
+              alive: true,
+              willHit,
+              aimX, aimY,
+              angle: 0
+            });
+          } else {
+            const dx = enemy.x - u.x;
+            const dy = enemy.y - u.y;
+            const len = Math.hypot(dx,dy) || 1;
+
+            u.meleeAnimT = u.meleeAnimDur;
+            u.lungeDx = dx/len;
+            u.lungeDy = dy/len;
+
+            addSlashEffect(
+              enemy.x - (dx/len)*8,
+              enemy.y - (dy/len)*8,
+              dx, dy
+            );
+
+            if(tryHit(u)){
+              applyHit(u, enemy, enemy.x, enemy.y, dx, dy);
+            } else {
+              applyMiss(u, enemy, enemy.x + rand(-10,10), enemy.y + rand(-10,10));
+            }
+          }
+        }
+      }
+    }
+
+    // projectiles
+    for(const p of projectiles){
+      if(!p.alive) continue;
+
+      const shooter = units.find(u => u.id === p.shooterId);
+      const attacker = shooter || (() => {
+        const t = UNIT_TYPES[p.shooterType];
+        return { team:p.shooterTeam, typeKey:p.shooterType, atk:t.atk, pen:t.pen, acc:t.acc };
+      })();
+
+      const target = units.find(u => u.id === p.targetId);
+
+      let tx, ty;
+      if(p.willHit){
+        if(!target || !target.alive){ p.alive=false; continue; }
+        tx = target.x; ty = target.y;
+      } else {
+        if(p.aimX == null || p.aimY == null){
+          if(!target){ p.alive=false; continue; }
+          p.aimX = target.x + rand(-30,30);
+          p.aimY = target.y + rand(-30,30);
+        }
+        tx = p.aimX; ty = p.aimY;
+      }
+
+      const dx = tx - p.x;
+      const dy = ty - p.y;
+      const len = Math.hypot(dx,dy) || 1;
+
+      p.angle = Math.atan2(dy, dx);
+
+      p.x += (dx/len) * p.speed * dt;
+      p.y += (dy/len) * p.speed * dt;
+
+      if(Math.hypot(tx - p.x, ty - p.y) < 12){
+        if(p.willHit && target && target.alive){
+          applyHit(attacker, target, target.x, target.y, dx, dy);
+        } else {
+          if(target) applyMiss(attacker, target, tx, ty);
+          else addDustEffect(tx, ty);
+        }
+        p.alive = false;
+      }
+    }
+    projectiles = projectiles.filter(p => p.alive);
+
+    const {p,e} = aliveCounts();
+    scoreEl.innerHTML = `<b>יחידות חיות:</b> אני ${p} | אויב ${e}`;
+
+    if(!ending && (p===0 || e===0)){
+      ending = true;
+      endTimer = 0.40;
+      timeScale = 0.25;
+      statusEl.innerHTML = p===0 ? "<b>סטטוס:</b> הפסדת — האויב ניצח!" : "<b>סטטוס:</b> ניצחת!";
+    }
+
+    if(ending){
+      endTimer -= dt;
+      if(endTimer <= 0){
+        battleOver = true;
+        running = false;
+        paused = false;
+        timeScale = 1;
+        ending = false;
+
+        setMenuOpen(true);
+        showSummary(formatSummary());
+      }
+    }
+  }
+
+  function formatSummary(){
+    if(!battleStats) return null;
+
+    const fmtSide = (title, s) => {
+      const lines = [];
+      lines.push(`${title}`);
+      lines.push(`סה"כ פגיעות: ${s.hits} | פספוסים: ${s.misses} | נזק מצטבר: ${s.damage.toFixed(1)}`);
+      for(const k of TYPE_KEYS){
+        const t = UNIT_TYPES[k].name;
+        const x = s.byType[k];
+        lines.push(`- ${t}: פגיעות ${x.hits}, פספוסים ${x.misses}, נזק ${x.damage.toFixed(1)}`);
+      }
+      return lines.join("\n");
+    };
+
+    const p = fmtSide("הצד שלך (למטה):", battleStats.player);
+    const e = fmtSide("האויב (למעלה):", battleStats.enemy);
+    return `סיכום קרב:\n\n${p}\n\n${e}`;
+  }
+
+  // ===== Draw =====
+  function drawEffects(){
+    for(const fx of effects){
+      if(fx.type === "slash"){
+        const p = 1 - (fx.t/fx.dur);
+        const fade = 1 - p;
+        const len = 18 + p*10;
+
+        ctx.save();
+        ctx.globalAlpha = 0.85 * fade;
+        ctx.strokeStyle = "rgba(240,250,255,1)";
+        ctx.lineWidth = 2;
+
+        const ax = fx.dx, ay = fx.dy;
+        const nx = -ay, ny = ax;
+
+        ctx.beginPath();
+        ctx.moveTo(fx.x - ax*len*0.6 - nx*6, fx.y - ay*len*0.6 - ny*6);
+        ctx.lineTo(fx.x + ax*len*0.6 + nx*6, fx.y + ay*len*0.6 + ny*6);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(fx.x - ax*len*0.6 + nx*6, fx.y - ay*len*0.6 + ny*6);
+        ctx.lineTo(fx.x + ax*len*0.6 - nx*6, fx.y + ay*len*0.6 - ny*6);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      if(fx.type === "impact"){
+        const p = 1 - (fx.t/fx.dur);
+        const fade = 1 - p;
+
+        ctx.save();
+        ctx.globalAlpha = 0.9 * fade;
+
+        ctx.strokeStyle = "rgba(255,255,255,1)";
+        ctx.lineWidth = 2;
+        const r = 6 + p*22;
+        ctx.beginPath();
+        ctx.arc(fx.x, fx.y, r, 0, Math.PI*2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(255,255,255,.9)";
+        ctx.lineWidth = 2;
+        for(const s of fx.sparks){
+          const L = (s.s * (0.15 + p)) * 0.32;
+          ctx.beginPath();
+          ctx.moveTo(fx.x + s.dx * (r*0.4), fx.y + s.dy * (r*0.4));
+          ctx.lineTo(fx.x + s.dx * (r*0.4 + L), fx.y + s.dy * (r*0.4 + L));
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      if(fx.type === "dust"){
+        const p = 1 - (fx.t/fx.dur);
+        const fade = 1 - p;
+        ctx.save();
+        ctx.globalAlpha = 0.45 * fade;
+        ctx.fillStyle = "rgba(220,230,255,1)";
+        const r = 4 + p*12;
+        ctx.beginPath();
+        ctx.arc(fx.x, fx.y, r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+
+  function drawFloaters(){
+    for(const f of floaters){
+      const p = 1 - (f.t/f.dur);
+      const fade = (1 - p);
+      const scale = f.scale0 + p*0.15;
+
+      ctx.save();
+      ctx.globalAlpha = 0.95 * fade;
+
+      const fill = (f.kind==="miss") ? "rgba(200,210,230,.95)" : "rgba(255,255,255,.98)";
+      const stroke = (f.kind==="miss") ? "rgba(0,0,0,.55)" : "rgba(0,0,0,.60)";
+
+      ctx.font = `800 ${Math.round(16*scale)}px system-ui`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = stroke;
+      ctx.strokeText(f.text, f.x, f.y);
+
+      ctx.fillStyle = fill;
+      ctx.fillText(f.text, f.x, f.y);
+
+      ctx.restore();
+    }
+  }
+
+  function drawUnit(u){
+    let ox=0, oy=0;
+    if(u.meleeAnimT>0){
+      const prog = 1 - (u.meleeAnimT/u.meleeAnimDur);
+      const kick = Math.sin(prog*Math.PI) * 10;
+      ox = u.lungeDx * kick;
+      oy = u.lungeDy * kick;
+    }
+
+    const teamStyle = TEAM_STYLE[u.team];
+
+    ctx.save();
+    ctx.translate(u.x+ox, u.y+oy);
+
+    // stronger glow by team
+    ctx.shadowBlur = (u.team==="enemy") ? 22 : 20;
+    ctx.shadowColor = teamStyle.glow;
+
+    // hit flash
+    const flash = u.hitFlashT>0 ? (0.6 + (u.hitFlashT/0.10)*0.4) : 1;
+    ctx.globalAlpha = flash;
+
+    // base fill + team tint overlay (big visual difference)
+    ctx.fillStyle = u.color;
+
+    // stroke by team
+    ctx.lineWidth = 3.2;
+    ctx.strokeStyle = teamStyle.ring;
+
+    const drawShape = () => {
+      if(u.shape==="circle"){
+        ctx.beginPath(); ctx.arc(0,0,u.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      } else if(u.shape==="square"){
+        ctx.beginPath();
+        if(ctx.roundRect) ctx.roundRect(-u.r,-u.r,u.r*2,u.r*2,7);
+        else ctx.rect(-u.r,-u.r,u.r*2,u.r*2);
+        ctx.fill(); ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(0,-u.r); ctx.lineTo(u.r,u.r); ctx.lineTo(-u.r,u.r);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+    };
+
+    drawShape();
+
+    // team tint overlay (noticeable)
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = teamStyle.tint;
+    ctx.lineWidth = 1;
+    // overlay same shape without stroke to tint fill
+    if(u.shape==="circle"){
+      ctx.beginPath(); ctx.arc(0,0,u.r-1,0,Math.PI*2); ctx.fill();
+    } else if(u.shape==="square"){
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(-u.r+1,-u.r+1,(u.r-1)*2,(u.r-1)*2,6);
+      else ctx.rect(-u.r+1,-u.r+1,(u.r-1)*2,(u.r-1)*2);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(0,-u.r+1); ctx.lineTo(u.r-1,u.r-1); ctx.lineTo(-u.r+1,u.r-1);
+      ctx.closePath(); ctx.fill();
+    }
+
+    // extra outer ring
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = (u.team==="enemy") ? "rgba(255,120,120,.85)" : "rgba(235,250,255,.70)";
+    ctx.beginPath();
+    ctx.arc(0,0,u.r+5,0,Math.PI*2);
+    ctx.stroke();
+
+    // unit type letter with team plate behind
+    ctx.fillStyle = (u.team==="enemy") ? "rgba(255,120,120,.85)" : "rgba(255,255,255,.70)";
+    ctx.beginPath();
+    ctx.arc(0, 0, 8.5, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(0,0,0,.70)";
+    ctx.font = "800 12px system-ui";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const tag = (u.typeKey==="warrior") ? "ל" : (u.typeKey==="knight" ? "א" : "ק");
+    ctx.fillText(tag, 0, 0.5);
+
+    // clear team marker
+    ctx.fillStyle = (u.team==="enemy") ? "rgba(255,80,80,1)" : "rgba(190,245,255,1)";
+    ctx.beginPath();
+    ctx.arc(0, u.r + 9, 4, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.restore();
+
+    // HP bar (team colored)
+    const barW=40, barH=7;
+    const x = u.x - barW/2;
+    const y = u.y - u.r - 17;
+
+    ctx.fillStyle = "rgba(0,0,0,.45)";
+    ctx.fillRect(x,y,barW,barH);
+
+    ctx.fillStyle = TEAM_STYLE[u.team].hpBack;
+    ctx.fillRect(x,y,barW,barH);
+
+    const ratio = (u.maxHp<=0) ? 0 : (u.hp/u.maxHp);
+    ctx.fillStyle = ratio>0.5 ? "rgba(80,220,120,.95)" : (ratio>0.25 ? "rgba(255,210,90,.95)" : "rgba(255,90,90,.95)");
+    ctx.fillRect(x,y,barW*clamp(ratio,0,1),barH);
+
+    ctx.strokeStyle = TEAM_STYLE[u.team].hpStroke;
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(x,y,barW,barH);
+  }
+
+  // rotated arrow by direction + team color
+  function drawArrow(p){
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.angle);
+
+    const c = TEAM_STYLE[p.shooterTeam]?.arrow || "rgba(240,250,255,.9)";
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 2;
+
+    // shaft
+    ctx.beginPath();
+    ctx.moveTo(-10, 0);
+    ctx.lineTo(10, 0);
+    ctx.stroke();
+
+    // head
+    ctx.beginPath();
+    ctx.moveTo(10, 0);
+    ctx.lineTo(5, -4);
+    ctx.moveTo(10, 0);
+    ctx.lineTo(5, 4);
+    ctx.stroke();
+
+    // tail
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.moveTo(-10, 0);
+    ctx.lineTo(-14, -3);
+    ctx.moveTo(-10, 0);
+    ctx.lineTo(-14, 3);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function draw(){
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+
+    ctx.clearRect(0,0,w,h);
+
+    // mid line
+    ctx.strokeStyle = "rgba(255,255,255,.06)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(18, h/2);
+    ctx.lineTo(w-18, h/2);
+    ctx.stroke();
+
+    // top enemy marker (stronger)
+    ctx.fillStyle = "rgba(255,110,110,.18)";
+    ctx.fillRect(18, 18, w-36, 10);
+
+    // bottom player marker (stronger)
+    ctx.fillStyle = "rgba(150,220,255,.16)";
+    ctx.fillRect(18, h-28, w-36, 10);
+
+    // arrows
+    for(const p of projectiles){
+      drawArrow(p);
+    }
+
+    drawEffects();
+
+    for(const u of units){
+      if(u.alive) drawUnit(u);
+    }
+
+    drawFloaters();
+
+    if(battleOver){
+      ctx.fillStyle = "rgba(0,0,0,.35)";
+      ctx.fillRect(w/2 - 220, 40, 440, 46);
+      ctx.strokeStyle = "rgba(255,255,255,.15)";
+      ctx.strokeRect(w/2 - 220, 40, 440, 46);
+
+      ctx.fillStyle = "rgba(255,255,255,.92)";
+      ctx.font = "bold 18px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(statusEl.textContent.replace("סטטוס: ",""), w/2, 63);
+    }
+  }
+
+  // ===== Loop =====
+  function loop(t){
+    if(!running) return;
+    if(!lastT) lastT = t;
+
+    const rawDt = Math.min(0.033, (t-lastT)/1000);
+    lastT = t;
+
+    const dt = rawDt * timeScale;
+
+    if(!paused) update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // ===== Modal (Stats screen) =====
+  function openStatsModal(){
+    // pause game while editing
+    wasPausedBeforeModal = paused;
+    if(running && !paused){
+      paused = true;
+      btnPauseSmall.textContent = "המשך";
+      statusEl.innerHTML = "<b>סטטוס:</b> מושהה (עריכת סטטים)";
+    }
+
+    populateModalFields();
+    statsModal.classList.remove("hidden");
+    statsModal.setAttribute("aria-hidden", "false");
+  }
+
+  function closeStatsModal(restorePauseState){
+    statsModal.classList.add("hidden");
+    statsModal.setAttribute("aria-hidden", "true");
+
+    if(running){
+      if(restorePauseState){
+        paused = wasPausedBeforeModal;
+        btnPauseSmall.textContent = paused ? "המשך" : "השהה";
+        statusEl.innerHTML = paused ? "<b>סטטוס:</b> מושהה" : "<b>סטטוס:</b> הקרב בעיצומו";
+      } else {
+        // keep paused
+        btnPauseSmall.textContent = "המשך";
+        statusEl.innerHTML = "<b>סטטוס:</b> מושהה";
+      }
+    }
+  }
+
+  function populateModalFields(){
+    const cards = statsModal.querySelectorAll(".typeCard");
+    cards.forEach(card => {
+      const type = card.getAttribute("data-type");
+      const t = UNIT_TYPES[type];
+
+      card.querySelectorAll("input[data-field]").forEach(inp => {
+        const f = inp.getAttribute("data-field");
+        if(f === "accPct") inp.value = Math.round(t.acc * 100);
+        else inp.value = t[f];
+      });
+    });
+  }
+
+  function readModalFieldsToUnitTypes(){
+    const cards = statsModal.querySelectorAll(".typeCard");
+    cards.forEach(card => {
+      const type = card.getAttribute("data-type");
+      const t = UNIT_TYPES[type];
+
+      card.querySelectorAll("input[data-field]").forEach(inp => {
+        const f = inp.getAttribute("data-field");
+        let v = Number(inp.value);
+
+        if(!Number.isFinite(v)) return;
+
+        if(f === "accPct"){
+          v = clamp(v, 0, 100);
+          t.acc = v / 100;
+          return;
+        }
+
+        // basic clamps
+        if(f === "hp") v = Math.max(0.1, v);
+        if(f === "atk") v = Math.max(0.1, v);
+        if(f === "rate") v = Math.max(0.1, v);
+        if(f === "range_m") v = Math.max(0.1, v);
+        if(f === "speedStat") v = Math.max(0.1, v);
+        if(f === "armor") v = clamp(v, 0, 100);
+        if(f === "pen") v = Math.max(0, v);
+
+        t[f] = v;
+      });
+    });
+  }
+
+  function resetStatsToDefaults(){
+    for(const k of TYPE_KEYS){
+      UNIT_TYPES[k] = JSON.parse(JSON.stringify(DEFAULT_UNIT_TYPES[k]));
+    }
+  }
+
+  // click outside modal card closes (cancel)
+  statsModal.addEventListener("click", (e) => {
+    if(e.target === statsModal){
+      closeStatsModal(true);
+    }
+  });
+
+  // ===== Controls =====
+  btnStart.addEventListener("click", () => {
+    resizeCanvas();
+    if(buildBattleFromUI()){
+      running = true;
+      paused = false;
+      battleOver = false;
+      lastT = 0;
+
+      btnPauseSmall.textContent = "השהה";
+      statusEl.innerHTML = "<b>סטטוס:</b> הקרב בעיצומו";
+      setMenuOpen(false);
+      showSummary(null);
+
+      requestAnimationFrame(loop);
+    }
+  });
+
+  btnResetMenu.addEventListener("click", resetBattle);
+  btnResetSmall.addEventListener("click", resetBattle);
+
+  btnPauseSmall.addEventListener("click", () => {
+    if(!running) return;
+    paused = !paused;
+    btnPauseSmall.textContent = paused ? "המשך" : "השהה";
+    statusEl.innerHTML = paused ? "<b>סטטוס:</b> מושהה" : "<b>סטטוס:</b> הקרב בעיצומו";
+  });
+
+  // open stats screen
+  btnOpenStats.addEventListener("click", openStatsModal);
+  btnStatsSmall.addEventListener("click", openStatsModal);
+
+  btnCloseStats.addEventListener("click", () => closeStatsModal(true));
+  btnCancelStats.addEventListener("click", () => closeStatsModal(true));
+
+  btnSaveStats.addEventListener("click", () => {
+    readModalFieldsToUnitTypes();
+    renderStatsLines();
+    applyStatsToExistingUnits(); // applies immediately (also mid-game)
+    closeStatsModal(true);
+  });
+
+  btnResetStatsDefaults.addEventListener("click", () => {
+    resetStatsToDefaults();
+    populateModalFields();
+  });
+
+  // ===== init draw =====
+  draw();
+
+  // ===== Combat & end slow-mo state =====
+  function updateWrapper(dt){
+    update(dt);
+  }
+
+  // Override update with end logic
+  function update(dt){
+    if(battleOver) return;
+
+    // floaters
+    for(const f of floaters){
+      f.t -= dt;
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      f.vx *= (1 - 1.5*dt);
+      f.vy *= (1 - 1.2*dt);
+    }
+    floaters = floaters.filter(f => f.t > 0);
+
+    // effects
+    for(const fx of effects) fx.t -= dt;
+    effects = effects.filter(fx => fx.t > 0);
+
+    // units
+    for(const u of units){
+      if(!u.alive) continue;
+
+      if(u.meleeAnimT>0) u.meleeAnimT = Math.max(0, u.meleeAnimT - dt);
+      if(u.hitFlashT>0) u.hitFlashT = Math.max(0, u.hitFlashT - dt);
+
+      const enemy = nearestEnemy(u);
+      if(!enemy) continue;
+
+      const d = dist(u,enemy);
+
+      if(d > u.range){
+        const dx = enemy.x - u.x;
+        const dy = enemy.y - u.y;
+        const len = Math.hypot(dx,dy) || 1;
+
+        u.x += (dx/len) * u.moveSpeed * dt;
+        u.y += (dy/len) * u.moveSpeed * dt;
+
+        const rect = canvas.getBoundingClientRect();
+        u.x = clamp(u.x, 22, rect.width - 22);
+        u.y = clamp(u.y, 70, rect.height - 40);
+
+      } else {
+        u.cooldown -= dt;
+        if(u.cooldown <= 0){
+          u.cooldown = u.rate;
+
+          if(u.projectile){
+            const willHit = tryHit(u);
+            const missOffset = 38;
+            const aimX = willHit ? null : (enemy.x + rand(-missOffset, missOffset));
+            const aimY = willHit ? null : (enemy.y + rand(-missOffset, missOffset));
+
+            projectiles.push({
+              x:u.x, y:u.y,
+              shooterId: u.id,
+              shooterType: u.typeKey,
+              shooterTeam: u.team,
+              targetId: enemy.id,
+              speed: 440,
+              alive: true,
+              willHit,
+              aimX, aimY,
+              angle: 0
+            });
+          } else {
+            const dx = enemy.x - u.x;
+            const dy = enemy.y - u.y;
+            const len = Math.hypot(dx,dy) || 1;
+
+            u.meleeAnimT = u.meleeAnimDur;
+            u.lungeDx = dx/len;
+            u.lungeDy = dy/len;
+
+            addSlashEffect(
+              enemy.x - (dx/len)*8,
+              enemy.y - (dy/len)*8,
+              dx, dy
+            );
+
+            if(tryHit(u)){
+              applyHit(u, enemy, enemy.x, enemy.y, dx, dy);
+            } else {
+              applyMiss(u, enemy, enemy.x + rand(-10,10), enemy.y + rand(-10,10));
+            }
+          }
+        }
+      }
+    }
+
+    // projectiles
+    for(const p of projectiles){
+      if(!p.alive) continue;
+
+      const shooter = units.find(u => u.id === p.shooterId);
+      const attacker = shooter || (() => {
+        const t = UNIT_TYPES[p.shooterType];
+        return { team:p.shooterTeam, typeKey:p.shooterType, atk:t.atk, pen:t.pen, acc:t.acc };
+      })();
+
+      const target = units.find(u => u.id === p.targetId);
+
+      let tx, ty;
+      if(p.willHit){
+        if(!target || !target.alive){ p.alive=false; continue; }
+        tx = target.x; ty = target.y;
+      } else {
+        if(p.aimX == null || p.aimY == null){
+          if(!target){ p.alive=false; continue; }
+          p.aimX = target.x + rand(-30,30);
+          p.aimY = target.y + rand(-30,30);
+        }
+        tx = p.aimX; ty = p.aimY;
+      }
+
+      const dx = tx - p.x;
+      const dy = ty - p.y;
+      const len = Math.hypot(dx,dy) || 1;
+
+      p.angle = Math.atan2(dy, dx);
+
+      p.x += (dx/len) * p.speed * dt;
+      p.y += (dy/len) * p.speed * dt;
+
+      if(Math.hypot(tx - p.x, ty - p.y) < 12){
+        if(p.willHit && target && target.alive){
+          applyHit(attacker, target, target.x, target.y, dx, dy);
+        } else {
+          if(target) applyMiss(attacker, target, tx, ty);
+          else addDustEffect(tx, ty);
+        }
+        p.alive = false;
+      }
+    }
+    projectiles = projectiles.filter(p => p.alive);
+
+    // end check + slow-mo
+    const {p,e} = aliveCounts();
+    scoreEl.innerHTML = `<b>יחידות חיות:</b> אני ${p} | אויב ${e}`;
+
+    if(!ending && (p===0 || e===0)){
+      ending = true;
+      endTimer = 0.40;
+      timeScale = 0.25;
+      statusEl.innerHTML = p===0 ? "<b>סטטוס:</b> הפסדת — האויב ניצח!" : "<b>סטטוס:</b> ניצחת!";
+    }
+
+    if(ending){
+      endTimer -= dt;
+      if(endTimer <= 0){
+        battleOver = true;
+        running = false;
+        paused = false;
+        timeScale = 1;
+        ending = false;
+
+        setMenuOpen(true);
+        showSummary(formatSummary());
+      }
+    }
+  }
+})();
+</script>
+</body>
+</html>
