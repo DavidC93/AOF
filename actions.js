@@ -52,7 +52,15 @@ function rollDice() {
         else if (sum === 12) { log.innerText = `יצא 12! מצאת תיבת אוצר!`; isPausedForEvent = true; openModal('chestModal'); }
         else {
             let produced = [];
-            tiles.forEach(t => { if (t.type !== 'empty' && t.number === sum) { resources[t.type] += t.level; produced.push(`${t.level} ${icons[t.type]}`); } });
+            tiles.forEach(t => {
+                if (t.type !== 'empty' && BUILDINGS[t.type] && t.number === sum) {
+                    const items = produceFromBuilding(t);
+                    items.forEach(p => {
+                        resources[p.res] += p.amt;
+                        produced.push(`${p.amt} ${icons[p.res]}`);
+                    });
+                }
+            });
             if (produced.length > 0) { log.innerText = `הופקו: ${produced.join(', ')}`; SFX.play('collect'); }
             else log.innerText = "לא הופקו משאבים הפעם.";
         }
@@ -83,9 +91,11 @@ function upgradeLibrary(event) {
 }
 
 // Market
-function createMarketRow(resId, resName, priceData) {
+function createMarketRow(resId, resName, priceData, rarity) {
     const canSell = resources[resId] > 0, canBuy = resources.coins >= priceData.buy;
-    return `<div class="market-item"><div class="market-res" title="${resName}">${icons[resId]} <span class="market-amt">(יש: ${resources[resId]})</span></div><div class="market-actions"><button class="btn-sell ${canSell ? '' : 'disabled-btn'}" onclick="tradeMarket('sell','${resId}',${priceData.sell},event)">מכור (+${priceData.sell}🪙)</button><button class="btn-buy ${canBuy ? '' : 'disabled-btn'}" onclick="tradeMarket('buy','${resId}',${priceData.buy},event)">קנה (-${priceData.buy}🪙)</button></div></div>`;
+    const rc = RARITY[rarity] || RARITY.common;
+    const rarityTag = rarity !== 'common' ? ` <span style="color:${rc.color};font-size:10px">[${rc.name}]</span>` : '';
+    return `<div class="market-item"><div class="market-res" title="${resName}">${icons[resId]}${rarityTag} <span class="market-amt">(${resources[resId]})</span></div><div class="market-actions"><button class="btn-sell ${canSell ? '' : 'disabled-btn'}" onclick="tradeMarket('sell','${resId}',${priceData.sell},event)">מכור (+${priceData.sell}🪙)</button><button class="btn-buy ${canBuy ? '' : 'disabled-btn'}" onclick="tradeMarket('buy','${resId}',${priceData.buy},event)">קנה (-${priceData.buy}🪙)</button></div></div>`;
 }
 
 function tradeMarket(action, resId, amount, event) {
@@ -97,9 +107,12 @@ function tradeMarket(action, resId, amount, event) {
 
 // Crafting
 function craft(advType, mode, event) {
-    vibe(); const bType = craftMap[advType], avail = resources[bType], max = Math.floor(avail / 3);
-    if (max > 0) { let amt = mode === 'max' ? max : 1; resources[bType] -= amt * 3; resources[advType] += amt; showFeedback(event, `+${amt} ${icons[advType]}`); SFX.play('craft'); updateUI(); }
-    else { SFX.play('error'); alert(`חסרים ${3 - avail} ${icons[bType]} ${basicRes[bType]}.`); }
+    vibe();
+    const a = advRes[advType], bType = a.from, need = a.cost;
+    const avail = resources[bType], max = Math.floor(avail / need);
+    const bInfo = basicRes[bType];
+    if (max > 0) { let amt = mode === 'max' ? max : 1; resources[bType] -= amt * need; resources[advType] += amt; showFeedback(event, `+${amt} ${a.icon}`); SFX.play('craft'); updateUI(); }
+    else { SFX.play('error'); alert(`חסרים ${need - avail} ${bInfo.icon} ${bInfo.name}.`); }
 }
 
 const MAX_SOLDIERS = 10;
@@ -180,18 +193,17 @@ function generateEnemyArmy() {
 }
 
 function addEmptyTile() {
-    let rn, st = 'empty';
-    if (discoveredTilesCount === 0) { rn = 9; st = 'ore'; }
-    else if (discoveredTilesCount === 1) { rn = 5; st = 'wool'; }
-    else if (discoveredTilesCount === 2) { rn = 4; }
-    else {
-        let counts = { 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
-        tiles.forEach(t => { if (counts[t.number] !== undefined) counts[t.number]++; });
-        let min = Infinity; for (let n in counts) if (counts[n] < min) min = counts[n];
-        let rarest = []; for (let n in counts) if (counts[n] === min) rarest.push(parseInt(n));
-        rn = Math.random() < 0.8 ? rarest[Math.floor(Math.random() * rarest.length)] : validTileNumbers[Math.floor(Math.random() * validTileNumbers.length)];
-    }
-    discoveredTilesCount++; tiles.push({ id: Date.now(), type: st, number: rn, level: 1 }); updateUI();
+    let rn;
+    // Assign dice number based on rarity balance
+    let counts = { 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
+    tiles.forEach(t => { if (counts[t.number] !== undefined) counts[t.number]++; });
+    let min = Infinity; for (let n in counts) if (counts[n] < min) min = counts[n];
+    let rarest = []; for (let n in counts) if (counts[n] === min) rarest.push(parseInt(n));
+    rn = Math.random() < 0.8 ? rarest[Math.floor(Math.random() * rarest.length)] : validTileNumbers[Math.floor(Math.random() * validTileNumbers.length)];
+
+    discoveredTilesCount++;
+    tiles.push({ id: Date.now(), type: 'empty', number: rn, level: 1 });
+    updateUI();
     if (!isAutoRolling) setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 500);
 }
 
@@ -261,7 +273,6 @@ function retreat() {
         const allRes = Object.keys(basicRes).concat(Object.keys(advRes));
         const shuffledRes = [...allRes].sort(() => Math.random() - 0.5);
         let losses = [];
-        const resNames = { ...basicRes, ...advRes };
         for (let i = 0; i < 3 && i < shuffledRes.length; i++) {
             const r = shuffledRes[i];
             if (resources[r] > 0) {
@@ -269,7 +280,8 @@ function retreat() {
                 const loss = Math.floor(Math.random() * maxLoss) + 1;
                 const actualLoss = Math.min(loss, resources[r]);
                 resources[r] -= actualLoss;
-                losses.push(`${actualLoss} ${icons[r]} ${resNames[r]}`);
+                const rInfo = basicRes[r] || advRes[r];
+                losses.push(`${actualLoss} ${rInfo.icon} ${rInfo.name}`);
             }
         }
         document.getElementById('action-log').innerText = `נסגת מהפשיטה. משאבים נבזזו: ${losses.join(', ')}`;

@@ -1,15 +1,135 @@
 // ===== Age of Fun - Resource Management Core =====
 
-const basicRes = { wood: 'עץ', clay: 'חימר', wheat: 'חיטה', wool: 'צמר', ore: 'עפרה' };
-const advRes = { plank: 'קרש', brick: 'לבנה', bread: 'לחם', cloth: 'בד', steel: 'פלדה' };
-const icons = { wood: '🌲', clay: '🟤', wheat: '🌾', wool: '🐑', ore: '⛰️', plank: '🪵', brick: '🧱', bread: '🍞', cloth: '🧵', steel: '⚙️', empty: '🏳️' };
-const craftMap = { plank: 'wood', brick: 'clay', bread: 'wheat', cloth: 'wool', steel: 'ore' };
-const validTileNumbers = [4, 5, 6, 7, 8, 9];
-const prices = { basic: { sell: 1, buy: 2 }, adv: { sell: 3, buy: 6 } };
+// === Rarity System ===
+const RARITY = {
+    common: { name: 'נפוץ', mult: 1, color: '#a0a0a0' },
+    uncommon: { name: 'שכיח', mult: 2, color: '#40c070' },
+    rare: { name: 'נדיר', mult: 3, color: '#4090ff' },
+    epic: { name: 'עילאי', mult: 4, color: '#b040e0' },
+    legendary: { name: 'אגדי', mult: 5, color: '#ff9020' }
+};
 
+// === Resource Definitions ===
+const basicRes = {
+    wood: { name: 'עץ', icon: '🌲', rarity: 'common' },
+    stone: { name: 'אבן', icon: '🪨', rarity: 'common' },
+    wheat: { name: 'חיטה', icon: '🌾', rarity: 'common' },
+    wool: { name: 'צמר', icon: '🐑', rarity: 'common' },
+    ore: { name: 'עפרת ברזל', icon: '⛰️', rarity: 'common' },
+    leather: { name: 'עור', icon: '🦌', rarity: 'common' },
+    coal: { name: 'פחם', icon: '⚫', rarity: 'common' },
+    nickelOre: { name: 'עפרת ניקל', icon: '💎', rarity: 'rare' }
+};
+
+const advRes = {
+    plank: { name: 'קרש', icon: '🪵', rarity: 'common', from: 'wood', cost: 3 },
+    brick: { name: 'לבנה', icon: '🧱', rarity: 'common', from: 'stone', cost: 3 },
+    bread: { name: 'לחם', icon: '🍞', rarity: 'common', from: 'wheat', cost: 3 },
+    cloth: { name: 'בד', icon: '🧵', rarity: 'common', from: 'wool', cost: 3 },
+    steel: { name: 'פלדה', icon: '⚙️', rarity: 'common', from: 'ore', cost: 3 }
+};
+
+// Backwards-compatible icon lookup
+const icons = {};
+for (const k in basicRes) icons[k] = basicRes[k].icon;
+for (const k in advRes) icons[k] = advRes[k].icon;
+icons.empty = '🏳️';
+
+// Craft map: advanced -> { basic, cost }
+const craftMap = {};
+for (const k in advRes) craftMap[k] = advRes[k].from;
+
+const validTileNumbers = [4, 5, 6, 7, 8, 9];
+
+// Market prices: base sell/buy, multiplied by rarity
+const basePrice = { basic: { sell: 1, buy: 2 }, adv: { sell: 3, buy: 6 } };
+function getPrice(resId) {
+    const info = basicRes[resId] || advRes[resId];
+    const mult = info ? RARITY[info.rarity].mult : 1;
+    const base = basicRes[resId] ? basePrice.basic : basePrice.adv;
+    return { sell: base.sell * mult, buy: base.buy * mult };
+}
+
+// === Building Definitions ===
+const BUILDINGS = {
+    forest: {
+        name: 'יער', icon: '🌳',
+        tiers: [
+            { minLevel: 1, resources: [{ res: 'wood', pct: 100 }] },
+            { minLevel: 2, resources: [{ res: 'wood', pct: 75 }, { res: 'coal', pct: 25 }] },
+            { minLevel: 4, resources: [{ res: 'wood', pct: 60 }, { res: 'coal', pct: 25 }, { res: 'leather', pct: 15 }] }
+        ]
+    },
+    quarry: {
+        name: 'מחצבה', icon: '⛏️',
+        tiers: [
+            { minLevel: 1, resources: [{ res: 'stone', pct: 100 }] },
+            { minLevel: 2, resources: [{ res: 'stone', pct: 70 }, { res: 'ore', pct: 30 }] },
+            { minLevel: 4, resources: [{ res: 'stone', pct: 55 }, { res: 'ore', pct: 30 }, { res: 'coal', pct: 15 }] }
+        ]
+    },
+    farm: {
+        name: 'חווה', icon: '🏡',
+        tiers: [
+            { minLevel: 1, resources: [{ res: 'wheat', pct: 100 }] },
+            { minLevel: 2, resources: [{ res: 'wheat', pct: 50 }, { res: 'wool', pct: 50 }] },
+            { minLevel: 3, resources: [{ res: 'wheat', pct: 40 }, { res: 'wool', pct: 40 }, { res: 'leather', pct: 20 }] }
+        ]
+    },
+    mine: {
+        name: 'מכרה', icon: '🏔️',
+        tiers: [
+            { minLevel: 1, resources: [{ res: 'ore', pct: 100 }] },
+            { minLevel: 2, resources: [{ res: 'ore', pct: 65 }, { res: 'coal', pct: 35 }] },
+            { minLevel: 5, resources: [{ res: 'ore', pct: 60 }, { res: 'coal', pct: 30 }, { res: 'nickelOre', pct: 10 }] }
+        ]
+    }
+};
+
+const buildingTypes = Object.keys(BUILDINGS);
+
+// Get active production tier for a building at given level
+function getProductionTier(buildingType, level) {
+    const b = BUILDINGS[buildingType];
+    if (!b) return null;
+    let active = b.tiers[0];
+    for (const tier of b.tiers) {
+        if (level >= tier.minLevel) active = tier;
+    }
+    return active;
+}
+
+// Produce resources from a building tile
+function produceFromBuilding(tile) {
+    if (!tile.type || tile.type === 'empty' || !BUILDINGS[tile.type]) return [];
+    const tier = getProductionTier(tile.type, tile.level);
+    if (!tier) return [];
+    const total = tile.level;
+    const produced = [];
+    let remaining = total;
+
+    // Sort by pct descending, distribute
+    const sorted = [...tier.resources].sort((a, b) => b.pct - a.pct);
+    for (let i = 0; i < sorted.length; i++) {
+        const r = sorted[i];
+        if (i === sorted.length - 1) {
+            // Last one gets remaining
+            const amt = Math.max(remaining > 0 ? 1 : 0, remaining);
+            if (amt > 0) produced.push({ res: r.res, amt });
+        } else {
+            const amt = Math.max(1, Math.round(total * r.pct / 100));
+            produced.push({ res: r.res, amt: Math.min(amt, remaining) });
+            remaining -= Math.min(amt, remaining);
+        }
+    }
+    return produced;
+}
+
+// === Game State ===
 let resources = {
     coins: 0, research: 0, maxPop: 5,
-    wood: 6, clay: 6, wheat: 6, wool: 3, ore: 0,
+    wood: 6, stone: 6, wheat: 6, wool: 3, ore: 0,
+    leather: 0, coal: 0, nickelOre: 0,
     plank: 0, brick: 0, bread: 0, cloth: 0, steel: 0,
     people: 0, swords: 0, armors: 0, shields: 0, bows: 0, horses: 0,
     archers: 0, warriors: 0, knights: 0
@@ -21,16 +141,17 @@ let autoRollTimer = null, isAutoRolling = false, isPausedForEvent = false, isRes
 let forcedNextRoll = null, isRollLocked = false;
 
 let tiles = [
-    { id: 1, type: 'wood', number: 6, level: 1 },
-    { id: 2, type: 'clay', number: 7, level: 1 },
-    { id: 3, type: 'wheat', number: 8, level: 1 }
+    { id: 1, type: 'forest', number: 6, level: 1 },
+    { id: 2, type: 'quarry', number: 7, level: 1 },
+    { id: 3, type: 'farm', number: 8, level: 1 },
+    { id: 4, type: 'mine', number: 9, level: 1 }
 ];
 
 // Enemy army for battle
 let pendingEnemyArmy = { warriors: 0, knights: 0, archers: 0 };
 let battlePlayerArmy = { warriors: 0, knights: 0, archers: 0 };
-let battleType = 'land'; // 'land' = discover land, 'raid' = enemy base raid
-let raidEnemyCount = 0; // total enemies in current raid (for loot calculation)
+let battleType = 'land';
+let raidEnemyCount = 0;
 
 function vibe() { if (navigator.vibrate) navigator.vibrate(15); }
 
@@ -60,14 +181,48 @@ function showFeedback(event, text, type = 'success') {
 function getPlayerPower() { return (resources.archers * 1) + (resources.warriors * 2) + (resources.knights * 3); }
 function getPopulation() { return resources.people + resources.archers + resources.warriors + resources.knights; }
 
+// Rarity badge HTML
+function rarityBadge(rarityKey) {
+    const r = RARITY[rarityKey];
+    return `<span style="color:${r.color};font-size:10px;font-weight:bold;">${r.name}</span>`;
+}
+
 function updateUI() {
     document.getElementById('res-coins').innerText = resources.coins;
     document.getElementById('res-research').innerText = resources.research;
     document.getElementById('res-power').innerText = getPlayerPower();
     document.getElementById('res-pop').innerText = `${getPopulation()}/${resources.maxPop}`;
+
+    // Update all resource counts
     for (let res in resources) {
         const el = document.getElementById(`res-${res}`);
         if (el) el.innerText = resources[res];
+    }
+
+    // Resource rows (dynamic)
+    const basicRow1 = document.getElementById('res-row-basic1');
+    const basicRow2 = document.getElementById('res-row-basic2');
+    const advRow = document.getElementById('res-row-adv');
+    if (basicRow1) {
+        const keys1 = ['wood', 'stone', 'wheat', 'wool'];
+        basicRow1.innerHTML = keys1.map(k => {
+            const r = basicRes[k];
+            return `<div class="res-item" style="width:25%">${r.icon} <span class="res-count" id="res-${k}">${resources[k]}</span></div>`;
+        }).join('');
+    }
+    if (basicRow2) {
+        const keys2 = ['ore', 'leather', 'coal', 'nickelOre'];
+        basicRow2.innerHTML = keys2.map(k => {
+            const r = basicRes[k];
+            const rc = RARITY[r.rarity].color;
+            return `<div class="res-item" style="width:25%">${r.icon} <span class="res-count" id="res-${k}" ${r.rarity !== 'common' ? `style="color:${rc}"` : ''}>${resources[k]}</span></div>`;
+        }).join('');
+    }
+    if (advRow) {
+        advRow.innerHTML = Object.keys(advRes).map(k => {
+            const r = advRes[k];
+            return `<div class="res-item" style="width:20%" title="${r.name}">${r.icon} <span class="res-count" id="res-${k}">${resources[k]}</span></div>`;
+        }).join('');
     }
 
     // Town Hall
@@ -92,8 +247,10 @@ function updateUI() {
     const craftGrid = document.getElementById('crafting-grid');
     craftGrid.innerHTML = '';
     for (let adv in advRes) {
-        const basic = craftMap[adv], have = resources[basic], need = 3, deficit = Math.max(0, need - have), can = have >= need;
-        craftGrid.innerHTML += `<div class="craft-card"><div style="font-size:24px">${icons[adv]}</div><div style="font-size:13px;font-weight:bold;color:var(--text)">${advRes[adv]}</div><div style="font-size:11px;color:var(--muted)">(<span class="${can ? '' : 'missing-res'}">${need}</span> ${icons[basic]} ${basicRes[basic]})</div><div class="craft-actions"><button class="craft-btn ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','single',event)">צור 1</button><button class="craft-btn btn-max ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','max',event)">הכל</button></div></div>`;
+        const a = advRes[adv], basic = a.from, need = a.cost;
+        const have = resources[basic], can = have >= need;
+        const bInfo = basicRes[basic];
+        craftGrid.innerHTML += `<div class="craft-card"><div style="font-size:24px">${a.icon}</div><div style="font-size:13px;font-weight:bold;color:var(--text)">${a.name}</div><div style="font-size:11px;color:var(--muted)">(<span class="${can ? '' : 'missing-res'}">${need}</span> ${bInfo.icon} ${bInfo.name})</div><div class="craft-actions"><button class="craft-btn ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','single',event)">צור 1</button><button class="craft-btn btn-max ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','max',event)">הכל</button></div></div>`;
     }
 
     // Military grid
@@ -119,8 +276,14 @@ function updateUI() {
     // Market
     const ml = document.getElementById('market-list'); ml.innerHTML = '';
     ml.innerHTML = `<div style="text-align:center;padding:8px 0;font-size:14px;font-weight:bold;color:var(--gold);border-bottom:1px solid var(--glass2);margin-bottom:8px;">🪙 מטבעות: ${resources.coins}</div>`;
-    for (let b in basicRes) ml.innerHTML += createMarketRow(b, basicRes[b], prices.basic);
-    for (let a in advRes) ml.innerHTML += createMarketRow(a, advRes[a], prices.adv);
+    for (let b in basicRes) {
+        const p = getPrice(b);
+        ml.innerHTML += createMarketRow(b, basicRes[b].name, p, basicRes[b].rarity);
+    }
+    for (let a in advRes) {
+        const p = getPrice(a);
+        ml.innerHTML += createMarketRow(a, advRes[a].name, p, advRes[a].rarity);
+    }
 
     // Board
     const board = document.getElementById('board-section'); board.innerHTML = '';
@@ -129,14 +292,20 @@ function updateUI() {
         const el = document.createElement('div'); el.className = 'tile'; el.setAttribute('data-type', tile.type);
         if (tile.type === 'empty') {
             let ch = '<div class="empty-choices">';
-            for (let b in basicRes) ch += `<button class="choice-btn" onclick="setTileType(${i},'${b}',event)">${icons[b]}</button>`;
-            el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>🏳️ שטח ריק</strong></div>${ch}</div>`;
-        } else {
+            for (let bt of buildingTypes) {
+                const b = BUILDINGS[bt];
+                ch += `<button class="choice-btn" onclick="setTileType(${i},'${bt}',event)" title="${b.name}">${b.icon}</button>`;
+            }
+            el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>🏳️ שטח ריק</strong><br><span style="font-size:11px;color:var(--muted)">בחר מבנה</span></div>${ch}</div>`;
+        } else if (BUILDINGS[tile.type]) {
+            const b = BUILDINGS[tile.type];
+            const tier = getProductionTier(tile.type, tile.level);
+            const prodStr = tier.resources.map(r => `${basicRes[r.res].icon}`).join(' ');
             const cP = tile.level, cS = Math.max(0, tile.level - 1);
             const can = resources.steel >= cS && resources.plank >= cP;
             let ut = `שדרג (`; if (cS > 0) ut += `<span class="${resources.steel >= cS ? '' : 'missing-res'}">${cS}</span>⚙️, `;
             ut += `<span class="${resources.plank >= cP ? '' : 'missing-res'}">${cP}</span>🪵)`;
-            el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>${icons[tile.type]} ${basicRes[tile.type] || advRes[tile.type]}</strong><br>רמה ${tile.level}</div><button class="upgrade-btn ${can ? '' : 'disabled-btn'}" onclick="upgradeTile(${i},event)">${ut}</button>`;
+            el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>${b.icon} ${b.name}</strong><br>רמה ${tile.level} | ${prodStr}</div><button class="upgrade-btn ${can ? '' : 'disabled-btn'}" onclick="upgradeTile(${i},event)">${ut}</button>`;
         }
         board.appendChild(el);
     });

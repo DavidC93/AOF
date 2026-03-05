@@ -303,7 +303,6 @@ function onBattleEnd() {
             const allRes = Object.keys(basicRes).concat(Object.keys(advRes));
             const shuffledRes = [...allRes].sort(() => Math.random() - 0.5);
             let losses = [];
-            const resNames = { ...basicRes, ...advRes };
             for (let i = 0; i < 3 && i < shuffledRes.length; i++) {
                 const r = shuffledRes[i];
                 if (resources[r] > 0) {
@@ -311,7 +310,8 @@ function onBattleEnd() {
                     const loss = Math.floor(Math.random() * maxLoss) + 1;
                     const actualLoss = Math.min(loss, resources[r]);
                     resources[r] -= actualLoss;
-                    losses.push(`${actualLoss} ${icons[r]} ${resNames[r]}`);
+                    const rInfo = basicRes[r] || advRes[r];
+                    losses.push(`${actualLoss} ${rInfo.icon} ${rInfo.name}`);
                 }
             }
             title.innerText = "💥 הבסיס נפל!";
