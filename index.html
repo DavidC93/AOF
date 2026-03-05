@@ -177,42 +177,55 @@
             background: var(--glass);
             border: 1px solid var(--glass2);
             border-radius: var(--radius);
-            padding: 12px 8px;
             text-align: center;
             box-shadow: 0 3px 12px var(--shadow);
             border-top: 4px solid #555;
             position: relative;
             backdrop-filter: blur(4px);
             transition: transform 0.15s;
+            overflow: hidden;
+            cursor: pointer;
         }
 
         .tile:active {
             transform: scale(0.97);
         }
 
-        .tile[data-type="wood"] {
+        .tile-with-img {
+            background-size: cover;
+            background-position: center;
+        }
+
+        .tile-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(10, 10, 20, 0.82) 0%, rgba(10, 10, 20, 0.93) 100%);
+            z-index: 0;
+        }
+
+        .tile-with-img>* {
+            position: relative;
+            z-index: 1;
+        }
+
+        .tile[data-type="forest"] {
             border-color: #27ae60;
-            background: rgba(39, 174, 96, 0.12);
+            background-color: rgba(39, 174, 96, 0.12);
         }
 
-        .tile[data-type="clay"] {
-            border-color: #d35400;
-            background: rgba(211, 84, 0, 0.12);
+        .tile[data-type="quarry"] {
+            border-color: #6c8da0;
+            background-color: rgba(108, 141, 160, 0.12);
         }
 
-        .tile[data-type="wheat"] {
+        .tile[data-type="farm"] {
             border-color: #f1c40f;
-            background: rgba(241, 196, 15, 0.12);
+            background-color: rgba(241, 196, 15, 0.12);
         }
 
-        .tile[data-type="ore"] {
-            border-color: #7f8c8d;
-            background: rgba(127, 140, 141, 0.12);
-        }
-
-        .tile[data-type="wool"] {
+        .tile[data-type="mine"] {
             border-color: #9b59b6;
-            background: rgba(155, 89, 182, 0.12);
+            background-color: rgba(155, 89, 182, 0.12);
         }
 
         .tile[data-type="empty"] {
@@ -222,7 +235,7 @@
         }
 
         .tile-number {
-            background: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.15);
             color: white;
             border-radius: 50%;
             width: 30px;
@@ -235,7 +248,8 @@
             margin-bottom: 8px;
             margin-left: auto;
             margin-right: auto;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(6px);
         }
 
         .tile-number.red {
@@ -246,6 +260,107 @@
             font-size: 13px;
             margin-bottom: 8px;
             color: var(--text);
+        }
+
+        .tile-compact {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 8px;
+            gap: 6px;
+        }
+
+        .tile-level-badge {
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            background: rgba(0, 0, 0, 0.55);
+            padding: 2px 10px;
+            border-radius: 10px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+        }
+
+        .detail-prod-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .detail-prod-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--glass2);
+            border-radius: 10px;
+            padding: 8px 12px;
+            text-align: right;
+        }
+
+        .prod-row {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        .prod-item {
+            font-size: 11px;
+            color: var(--muted);
+            background: rgba(255, 255, 255, 0.06);
+            padding: 1px 6px;
+            border-radius: 8px;
+        }
+
+        /* Building choice buttons */
+        .choice-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 6px 4px;
+            min-width: 60px;
+        }
+
+        .choice-img {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .choice-label {
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        /* Modal banners */
+        .modal-banner {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            border-radius: var(--radius) var(--radius) 0 0;
+            margin: -16px -16px 12px -16px;
+            width: calc(100% + 32px);
+            display: block;
+            opacity: 0.7;
+            mask-image: linear-gradient(to bottom, black 60%, transparent);
+            -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent);
+        }
+
+        .modal-banner-sq {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            opacity: 0.85;
         }
 
         /* ===== Buttons ===== */
@@ -412,16 +527,29 @@
             flex: 1;
             border: 1px solid var(--glass3);
             border-radius: 12px;
-            padding: 8px 4px;
+            padding: 0;
             color: white;
             font-weight: bold;
             font-size: 11px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-end;
             box-shadow: 0 2px 8px var(--shadow);
-            backdrop-filter: blur(4px);
+            background-size: cover;
+            background-position: center;
+            height: 56px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-btn-label {
+            width: 100%;
+            padding: 5px 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+            font-size: 11px;
+            font-weight: bold;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
         }
 
         .nav-icon {
@@ -430,15 +558,18 @@
         }
 
         .btn-craft {
-            background: linear-gradient(135deg, rgba(192, 57, 43, 0.7), rgba(150, 40, 30, 0.7));
+            background-image: url('images/crafting.png');
+            background-color: rgba(192, 57, 43, 0.7);
         }
 
         .btn-military {
-            background: linear-gradient(135deg, rgba(142, 68, 173, 0.7), rgba(100, 40, 130, 0.7));
+            background-image: url('images/military.png');
+            background-color: rgba(142, 68, 173, 0.7);
         }
 
         .btn-market {
-            background: linear-gradient(135deg, rgba(230, 126, 34, 0.7), rgba(180, 90, 20, 0.7));
+            background-image: url('images/market.png');
+            background-color: rgba(230, 126, 34, 0.7);
         }
 
         .btn-menu {
@@ -487,8 +618,16 @@
             font-size: 24px;
             font-weight: bold;
             color: var(--muted);
-            background: none;
-            border: none;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            backdrop-filter: blur(4px);
         }
 
         .modal-title {
@@ -947,8 +1086,13 @@
     <div id="special-buildings">
         <div id="town-hall" class="special-bldg">
             <div>
-                <h2>🏛️ עירייה (רמה <span id="th-level">1</span>)</h2>
-                <p>2 בקוביות = <strong id="th-prod">1</strong> 👨</p>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <img src="images/townhall.png" class="modal-banner-sq" onerror="this.style.display='none'">
+                    <div>
+                        <h2>🏛️ עירייה (רמה <span id="th-level">1</span>)</h2>
+                        <p>2 בקוביות = <strong id="th-prod">1</strong> 👨</p>
+                    </div>
+                </div>
             </div>
             <div>
                 <div class="cost-grid" id="th-cost-display"></div>
@@ -957,8 +1101,13 @@
         </div>
         <div id="library" class="special-bldg">
             <div>
-                <h2>📚 ספרייה (רמה <span id="lib-level">1</span>)</h2>
-                <p>3 בקוביות = <strong id="lib-prod">1</strong> 🧪</p>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <img src="images/library.png" class="modal-banner-sq" onerror="this.style.display='none'">
+                    <div>
+                        <h2>📚 ספרייה (רמה <span id="lib-level">1</span>)</h2>
+                        <p>3 בקוביות = <strong id="lib-prod">1</strong> 🧪</p>
+                    </div>
+                </div>
             </div>
             <div>
                 <div class="cost-grid" id="lib-cost-display"></div>
@@ -978,14 +1127,22 @@
             </button>
         </div>
         <div class="dashboard-nav">
-            <button class="nav-btn btn-craft" onclick="openModal('craftModal')"><span
-                    class="nav-icon">🏭</span>מפעל</button>
-            <button class="nav-btn btn-military" onclick="openModal('militaryModal')"><span
-                    class="nav-icon">⛺</span>צבא</button>
-            <button class="nav-btn btn-market" onclick="openModal('marketModal')"><span
-                    class="nav-icon">⚖️</span>שוק</button>
-            <button class="nav-btn btn-menu" onclick="openModal('menuModal')"><span
-                    class="nav-icon">⚙️</span>תפריט</button>
+            <button class="nav-btn btn-craft" onclick="openModal('craftModal')"><span class="nav-btn-label">🏭
+                    מפעל</span></button>
+            <button class="nav-btn btn-military" onclick="openModal('militaryModal')"><span class="nav-btn-label">⛺
+                    צבא</span></button>
+            <button class="nav-btn btn-market" onclick="openModal('marketModal')"><span class="nav-btn-label">⚖️
+                    שוק</span></button>
+            <button class="nav-btn btn-menu" onclick="openModal('menuModal')"><span class="nav-btn-label">⚙️
+                    תפריט</span></button>
+        </div>
+    </div>
+
+    <!-- Tile Detail Modal -->
+    <div id="tileDetailModal" class="modal-overlay">
+        <div class="modal-content center-text">
+            <button class="close-btn" onclick="closeModal('tileDetailModal')">×</button>
+            <div id="tile-detail-content"></div>
         </div>
     </div>
 
@@ -1040,6 +1197,7 @@
     <div id="marketModal" class="modal-overlay">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('marketModal')">×</button>
+            <img src="images/market.png" class="modal-banner" onerror="this.style.display='none'">
             <h3 class="modal-title">⚖️ שוק סחר</h3>
             <p style="font-size:12px; color:var(--muted); text-align:center;">קנה ומוכר משאבים באמצעות מטבעות.</p>
             <div id="market-list"></div>
@@ -1049,6 +1207,7 @@
     <div id="craftModal" class="modal-overlay">
         <div class="modal-content center-text">
             <button class="close-btn" onclick="closeModal('craftModal')">×</button>
+            <img src="images/crafting.png" class="modal-banner" onerror="this.style.display='none'">
             <h3 class="modal-title">🏭 מפעל יצירה (3 = 1)</h3>
             <div class="craft-grid" id="crafting-grid"></div>
         </div>
@@ -1057,6 +1216,7 @@
     <div id="militaryModal" class="modal-overlay">
         <div class="modal-content center-text">
             <button class="close-btn" onclick="closeModal('militaryModal')">×</button>
+            <img src="images/military.png" class="modal-banner" onerror="this.style.display='none'">
             <h3 class="modal-title">⛺ בסיס צבאי</h3>
             <p style="font-size:12px; color:var(--muted);">הגדל את הכוח הצבאי שלך לקראת קרבות!</p>
             <div class="craft-grid" id="military-grid"></div>

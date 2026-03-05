@@ -296,7 +296,18 @@ function setNextRoll(event) { vibe(); const v = parseInt(document.getElementById
 function clearForcedRoll(event) { vibe(); forcedNextRoll = null; isRollLocked = false; document.getElementById('cheat-roll-persist').checked = false; showFeedback(event, "✅ בוטל!"); setTimeout(() => closeModal('menuModal'), 500); }
 function addCheatCoins(event) { vibe(); const v = parseInt(document.getElementById('cheat-coins-val').value) || 1000; resources.coins += v; showFeedback(event, `+${v}🪙`); updateUI(); }
 function cheatAddLand(event) { vibe(); showFeedback(event, "🌍 שטח!"); addEmptyTile(); setTimeout(() => closeModal('menuModal'), 500); }
-function openModal(id) { vibe(); SFX.play('click'); document.getElementById(id).style.display = 'flex'; updateUI(); }
+function openModal(id) {
+    vibe(); SFX.play('click');
+    const overlay = document.getElementById(id);
+    overlay.style.display = 'flex';
+    // Click outside to close (except combat/chest modals which need explicit action)
+    if (id !== 'combatModal' && id !== 'chestModal') {
+        overlay.onclick = function (e) {
+            if (e.target === overlay) { closeModal(id); }
+        };
+    }
+    updateUI();
+}
 function closeModal(id) { vibe(); SFX.play('click'); document.getElementById(id).style.display = 'none'; }
 
 // Mute toggle

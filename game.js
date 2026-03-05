@@ -291,23 +291,58 @@ function updateUI() {
         const isRed = (tile.number === 6 || tile.number === 8) ? 'red' : '';
         const el = document.createElement('div'); el.className = 'tile'; el.setAttribute('data-type', tile.type);
         if (tile.type === 'empty') {
+            el.style.padding = '12px 8px';
             let ch = '<div class="empty-choices">';
             for (let bt of buildingTypes) {
                 const b = BUILDINGS[bt];
-                ch += `<button class="choice-btn" onclick="setTileType(${i},'${bt}',event)" title="${b.name}">${b.icon}</button>`;
+                ch += `<button class="choice-btn" onclick="event.stopPropagation();setTileType(${i},'${bt}',event)" title="${b.name}"><img src="images/${bt}.png" class="choice-img" onerror="this.style.display='none';this.parentNode.insertAdjacentText('afterbegin','${b.icon}')"><span class="choice-label">${b.name}</span></button>`;
             }
             el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>🏳️ שטח ריק</strong><br><span style="font-size:11px;color:var(--muted)">בחר מבנה</span></div>${ch}</div>`;
         } else if (BUILDINGS[tile.type]) {
             const b = BUILDINGS[tile.type];
-            const tier = getProductionTier(tile.type, tile.level);
-            const prodStr = tier.resources.map(r => `${basicRes[r.res].icon}`).join(' ');
-            const cP = tile.level, cS = Math.max(0, tile.level - 1);
-            const can = resources.steel >= cS && resources.plank >= cP;
-            let ut = `שדרג (`; if (cS > 0) ut += `<span class="${resources.steel >= cS ? '' : 'missing-res'}">${cS}</span>⚙️, `;
-            ut += `<span class="${resources.plank >= cP ? '' : 'missing-res'}">${cP}</span>🪵)`;
-            el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>${b.icon} ${b.name}</strong><br>רמה ${tile.level} | ${prodStr}</div><button class="upgrade-btn ${can ? '' : 'disabled-btn'}" onclick="upgradeTile(${i},event)">${ut}</button>`;
+            el.style.backgroundImage = `url('images/${tile.type}.png')`;
+            el.classList.add('tile-with-img');
+            el.onclick = () => openTileDetail(i);
+            el.innerHTML = `<div class="tile-overlay"></div><div class="tile-compact"><div class="tile-number ${isRed}">${tile.number}</div><div class="tile-level-badge">${b.icon} Lv.${tile.level}</div></div>`;
         }
         board.appendChild(el);
     });
     autoSave();
+}
+
+// Open tile detail modal
+function openTileDetail(tileIndex) {
+    vibe(); SFX.play('click');
+    const tile = tiles[tileIndex];
+    const b = BUILDINGS[tile.type];
+    if (!b) return;
+    const tier = getProductionTier(tile.type, tile.level);
+    const prodHTML = tier.resources.map(r => {
+        const ri = basicRes[r.res];
+        const rarityInfo = RARITY[ri.rarity];
+        return `<div class="detail-prod-item"><span style="font-size:20px">${ri.icon}</span><div><strong>${ri.name}</strong> <span style="font-size:11px;color:${rarityInfo.color}">[${rarityInfo.name}]</span><br><span style="color:var(--gold);font-weight:bold">${r.pct}%</span></div></div>`;
+    }).join('');
+
+    const cP = tile.level, cS = Math.max(0, tile.level - 1);
+    const can = resources.steel >= cS && resources.plank >= cP;
+    let costText = '';
+    if (cS > 0) costText += `<span class="${resources.steel >= cS ? '' : 'missing-res'}">${cS}</span> ⚙️ פלדה + `;
+    costText += `<span class="${resources.plank >= cP ? '' : 'missing-res'}">${cP}</span> 🪵 קרשים`;
+
+    const content = document.getElementById('tile-detail-content');
+    content.innerHTML = `
+        <img src="images/${tile.type}.png" class="modal-banner" onerror="this.style.display='none'">
+        <h3 class="modal-title">${b.icon} ${b.name}</h3>
+        <div style="font-size:14px;color:var(--muted);margin-bottom:12px">רמה ${tile.level} | קוביות: ${tile.number}</div>
+        <div style="text-align:right;margin-bottom:12px">
+            <div style="font-size:13px;font-weight:bold;color:var(--text);margin-bottom:8px">📦 ייצור משאבים:</div>
+            <div class="detail-prod-list">${prodHTML}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:6px">סה"כ ${tile.level} יחידות לכל זריקה תואמת</div>
+        </div>
+        <div style="border-top:1px solid var(--glass2);padding-top:12px">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px">עלות שדרוג: ${costText}</div>
+            <button class="upgrade-btn ${can ? '' : 'disabled-btn'}" style="width:100%;padding:10px" onclick="upgradeTile(${tileIndex},event);openTileDetail(${tileIndex})">⬆️ שדרג לרמה ${tile.level + 1}</button>
+        </div>
+    `;
+    openModal('tileDetailModal');
 }
