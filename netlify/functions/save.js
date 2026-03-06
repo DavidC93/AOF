@@ -23,18 +23,22 @@ exports.handler = async (event) => {
 
         const sql = getDb();
 
-        // If there's an existing save with a signature, verify the client sent the correct previous signature
-        if (clientSig !== '__first_save__') {
+        // Soft HMAC check — warn but still save (prevents lockouts from resets/DB wipes)
+        let tamperWarning = false;
+        if (clientSig && clientSig !== '__first_save__') {
             const existing = await sql`SELECT save_data FROM game_saves WHERE user_id = ${user.userId}`;
             if (existing.length > 0) {
-                const existingData = existing[0].save_data;
-                const expectedSig = signSaveData(existingData);
-                // Client must prove they have the valid previous signature
-                if (clientSig !== expectedSig) {
-                    console.warn(`HMAC mismatch for user ${user.userId}. Possible tampering.`);
-                    return jsonResponse(403, { error: 'שמירה נדחתה — זוהה שינוי לא מורשה במידע. טען את המשחק מהענן.' });
+                try {
+                    const expectedSig = signSaveData(existing[0].save_data);
+                    if (clientSig !== expectedSig) {
+                        console.warn(`HMAC mismatch for user ${user.userId}. Possible tampering or stale client.`);
+                        tamperWarning = true;
+                    }
+                } catch (e) {
+                    console.warn('HMAC verify error:', e.message);
                 }
             }
+            // If no existing save in DB, accept any signature (DB was wiped)
         }
 
         // Sign the new save data
@@ -47,7 +51,10 @@ exports.handler = async (event) => {
             DO UPDATE SET save_data = ${JSON.stringify(saveData)}, updated_at = NOW()
         `;
 
-        return jsonResponse(200, { message: 'המשחק נשמר בענן!', signature: newSignature });
+        const response = { message: 'המשחק נשמר בענן!', signature: newSignature };
+        if (tamperWarning) response.warning = 'זוהה חוסר התאמה בחתימה — ייתכן שהמידע שונה.';
+
+        return jsonResponse(200, response);
     } catch (err) {
         console.error('Save error:', err);
         return jsonResponse(500, { error: 'שגיאת שמירה' });

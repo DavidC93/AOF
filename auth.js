@@ -159,10 +159,7 @@ async function cloudSave(event) {
                 setTimeout(() => showFeedback(event, '✅ נשמר!'), 300);
                 SFX.play('collect');
             }
-        } else if (res.status === 403) {
-            // Tampering detected
-            if (event) showFeedback(event, '🚫 נדחה!', 'error');
-            alert(data.error || 'שמירה נדחתה — זוהה שינוי לא מורשה.');
+            if (data.warning) console.warn('Cloud save warning:', data.warning);
         } else if (res.status === 401) {
             logout(event);
             alert('התחברותך פגה. התחבר שוב.');
@@ -247,5 +244,15 @@ if (originalAutoSave) {
     window.autoSave = function () {
         originalAutoSave();
         scheduleCloudSave();
+    };
+}
+
+// Hook into resetGame to clear cloud signature
+const originalResetGame = typeof resetGame === 'function' ? resetGame : null;
+if (originalResetGame) {
+    window.resetGame = function (event) {
+        currentSignature = '__first_save__';
+        localStorage.setItem('aof_sig', '__first_save__');
+        originalResetGame(event);
     };
 }
