@@ -1,0 +1,10 @@
+{
+  "name": "age-of-fun",
+  "version": "1.0.0",
+  "description": "Age of Fun - Resource Management Game",
+  "dependencies": {
+    "@netlify/neon": "^0.1.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.0"
+  }
+}
