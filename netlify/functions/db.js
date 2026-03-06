@@ -1,7 +1,9 @@
 const { neon } = require('@netlify/neon');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'aof-dev-secret-change-in-production';
+const HMAC_SECRET = process.env.JWT_SECRET + '-hmac-save';
 
 function getDb() {
     const sql = neon();
@@ -21,6 +23,17 @@ function verifyToken(authHeader) {
     }
 }
 
+// HMAC signature for save data integrity
+function signSaveData(saveData) {
+    const payload = JSON.stringify(saveData);
+    return crypto.createHmac('sha256', HMAC_SECRET).update(payload).digest('hex');
+}
+
+function verifySaveSignature(saveData, signature) {
+    const expected = signSaveData(saveData);
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+}
+
 function corsHeaders() {
     return {
         'Access-Control-Allow-Origin': '*',
@@ -34,4 +47,4 @@ function jsonResponse(statusCode, body) {
     return { statusCode, headers: corsHeaders(), body: JSON.stringify(body) };
 }
 
-module.exports = { getDb, createToken, verifyToken, corsHeaders, jsonResponse };
+module.exports = { getDb, createToken, verifyToken, signSaveData, verifySaveSignature, corsHeaders, jsonResponse };

@@ -4,6 +4,7 @@ let authToken = localStorage.getItem('aof_token') || null;
 let authEmail = localStorage.getItem('aof_email') || null;
 let authMode = 'login'; // 'login' or 'register'
 let cloudSaveTimer = null;
+let currentSignature = localStorage.getItem('aof_sig') || '__first_save__';
 
 // API base (empty for same-origin Netlify Functions)
 const API = '/.netlify/functions';
@@ -89,9 +90,11 @@ async function submitAuth() {
 
         SFX.play('victory');
 
-        setTimeout(() => {
+        // Load cloud save on login
+        setTimeout(async () => {
             closeModal('authModal');
             updateAuthUI();
+            await cloudLoad(null); // silent load
         }, 1000);
     } catch (err) {
         errorEl.innerText = 'שגיאת חיבור לשרת';
@@ -106,8 +109,10 @@ function logout(event) {
     vibe();
     authToken = null;
     authEmail = null;
+    currentSignature = '__first_save__';
     localStorage.removeItem('aof_token');
     localStorage.removeItem('aof_email');
+    localStorage.removeItem('aof_sig');
     showFeedback(event, '🚪 התנתקת');
     SFX.play('click');
     updateAuthUI();
@@ -121,8 +126,10 @@ async function cloudSave(event) {
         return;
     }
 
-    vibe();
-    if (event) showFeedback(event, '☁️ שומר...');
+    if (event) {
+        vibe();
+        showFeedback(event, '☁️ שומר...');
+    }
 
     try {
         const saveData = {
@@ -139,22 +146,31 @@ async function cloudSave(event) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${authToken}`
             },
-            body: JSON.stringify({ saveData })
+            body: JSON.stringify({ saveData, signature: currentSignature })
         });
 
         const data = await res.json();
 
         if (res.ok) {
-            if (event) setTimeout(() => showFeedback(event, '✅ נשמר!'), 300);
-            SFX.play('collect');
-        } else {
-            if (res.status === 401) {
-                // Token expired
-                logout(event);
-                alert('התחברותך פגה. התחבר שוב.');
-            } else {
-                if (event) showFeedback(event, '❌ שגיאה', 'error');
+            // Update signature for next save
+            currentSignature = data.signature;
+            localStorage.setItem('aof_sig', currentSignature);
+            if (event) {
+                setTimeout(() => showFeedback(event, '✅ נשמר!'), 300);
+                SFX.play('collect');
             }
+        } else if (res.status === 403) {
+            // Tampering detected
+            if (event) showFeedback(event, '🚫 נדחה!', 'error');
+            alert(data.error || 'שמירה נדחתה — זוהה שינוי לא מורשה.');
+        } else if (res.status === 401) {
+            logout(event);
+            alert('התחברותך פגה. התחבר שוב.');
+        } else if (res.status === 429) {
+            // Rate limited — silent on auto, show on manual
+            if (event) showFeedback(event, '⏳ מהר מדי', 'error');
+        } else {
+            if (event) showFeedback(event, '❌ שגיאה', 'error');
         }
     } catch (err) {
         if (event) showFeedback(event, '❌ שגיאת רשת', 'error');
@@ -167,8 +183,10 @@ async function cloudLoad(event) {
         return;
     }
 
-    vibe();
-    if (event) showFeedback(event, '☁️ טוען...');
+    if (event) {
+        vibe();
+        showFeedback(event, '☁️ טוען...');
+    }
 
     try {
         const res = await fetch(`${API}/load`, {
@@ -188,10 +206,17 @@ async function cloudLoad(event) {
             libraryLevel = s.libraryLevel || 1;
             discoveredTilesCount = s.discoveredTilesCount || 0;
             if (s.tiles) tiles = s.tiles;
+            // Store signature for next save
+            currentSignature = data.signature;
+            localStorage.setItem('aof_sig', currentSignature);
             updateUI();
-            if (event) setTimeout(() => showFeedback(event, '✅ נטען!'), 300);
-            SFX.play('collect');
+            if (event) {
+                setTimeout(() => showFeedback(event, '✅ נטען!'), 300);
+                SFX.play('collect');
+            }
         } else if (res.ok && !data.saveData) {
+            currentSignature = data.signature || '__first_save__';
+            localStorage.setItem('aof_sig', currentSignature);
             if (event) showFeedback(event, '📭 אין שמירה', 'error');
         } else {
             if (res.status === 401) {
@@ -204,7 +229,7 @@ async function cloudLoad(event) {
     }
 }
 
-// Debounced auto cloud save (saves 10 seconds after last change)
+// Debounced auto cloud save (saves 10 seconds after last change, silently)
 function scheduleCloudSave() {
     if (!authToken) return;
     clearTimeout(cloudSaveTimer);
@@ -212,7 +237,6 @@ function scheduleCloudSave() {
 }
 
 // ===== Init =====
-// Update auth UI on load
 document.addEventListener('DOMContentLoaded', () => {
     updateAuthUI();
 });
