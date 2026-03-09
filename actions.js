@@ -108,11 +108,33 @@ function tradeMarket(action, resId, amount, event) {
 // Crafting
 function craft(advType, mode, event) {
     vibe();
-    const a = advRes[advType], bType = a.from, need = a.cost;
-    const avail = resources[bType], max = Math.floor(avail / need);
-    const bInfo = basicRes[bType];
-    if (max > 0) { let amt = mode === 'max' ? max : 1; resources[bType] -= amt * need; resources[advType] += amt; showFeedback(event, `+${amt} ${a.icon}`); SFX.play('craft'); updateUI(); }
-    else { SFX.play('error'); alert(`חסרים ${need - avail} ${bInfo.icon} ${bInfo.name}.`); }
+    const a = advRes[advType];
+    if (a.ingredients) {
+        // Multi-ingredient recipe
+        const entries = Object.entries(a.ingredients);
+        const maxCraft = Math.min(...entries.map(([r, amt]) => Math.floor(resources[r] / amt)));
+        if (maxCraft > 0) {
+            const amt = mode === 'max' ? maxCraft : 1;
+            for (const [r, need] of entries) resources[r] -= amt * need;
+            resources[advType] += amt;
+            showFeedback(event, `+${amt} ${a.icon}`);
+            SFX.play('craft');
+            updateUI();
+        } else {
+            SFX.play('error');
+            const missing = entries.filter(([r, amt]) => resources[r] < amt)
+                .map(([r, amt]) => { const ri = basicRes[r] || advRes[r] || { icon: '?', name: r }; return `${amt - resources[r]} ${ri.icon} ${ri.name}`; })
+                .join(', ');
+            alert(`חסרים: ${missing}`);
+        }
+    } else {
+        // Simple single-ingredient recipe
+        const bType = a.from, need = a.cost;
+        const avail = resources[bType], max = Math.floor(avail / need);
+        const bInfo = basicRes[bType];
+        if (max > 0) { let amt = mode === 'max' ? max : 1; resources[bType] -= amt * need; resources[advType] += amt; showFeedback(event, `+${amt} ${a.icon}`); SFX.play('craft'); updateUI(); }
+        else { SFX.play('error'); alert(`חסרים ${need - avail} ${bInfo.icon} ${bInfo.name}.`); }
+    }
 }
 
 const MAX_SOLDIERS = 10;

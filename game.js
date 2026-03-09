@@ -26,7 +26,10 @@ const advRes = {
     brick: { name: 'לבנה', icon: '🧱', rarity: 'common', from: 'stone', cost: 3 },
     bread: { name: 'לחם', icon: '🍞', rarity: 'common', from: 'wheat', cost: 3 },
     cloth: { name: 'בד', icon: '🧵', rarity: 'common', from: 'wool', cost: 3 },
-    steel: { name: 'פלדה', icon: '⚙️', rarity: 'common', from: 'ore', cost: 3 }
+    steel: { name: 'פלדה', icon: '⚙️', rarity: 'common', from: 'ore', cost: 3 },
+    carbon: { name: 'פחמן', icon: '♦️', rarity: 'uncommon', ingredients: { coal: 2 } },
+    steelIngot: { name: 'מטיל פלדה', icon: '🔩', rarity: 'uncommon', ingredients: { ore: 2, carbon: 1 } },
+    nickelSteel: { name: 'פלדת ניקל', icon: '💠', rarity: 'rare', ingredients: { nickelOre: 3, carbon: 2 } }
 };
 
 // Backwards-compatible icon lookup
@@ -160,6 +163,7 @@ let resources = {
     wood: 6, stone: 6, wheat: 6, wool: 3, ore: 0,
     leather: 0, coal: 0, nickelOre: 0,
     plank: 0, brick: 0, bread: 0, cloth: 0, steel: 0,
+    carbon: 0, steelIngot: 0, nickelSteel: 0,
     people: 0, swords: 0, armors: 0, shields: 0, bows: 0, horses: 0,
     archers: 0, warriors: 0, knights: 0
 };
@@ -250,15 +254,29 @@ function updateUI() {
         `<span class="${resources.plank >= lP ? '' : 'missing-res'}">${lP}</span>🪵 <span class="${resources.brick >= lB ? '' : 'missing-res'}">${lB}</span>🧱<br><span class="${resources.steel >= lS ? '' : 'missing-res'}">${lS}</span>⚙️ <span class="${resources.research >= lR ? '' : 'missing-res'}">${lR}</span>🧪`;
 
     // Crafting grid (only when crafting modal is open)
-    const craftModal = document.getElementById('craftingModal');
+    const craftModal = document.getElementById('craftModal');
     if (craftModal && craftModal.style.display !== 'none') {
         const craftGrid = document.getElementById('crafting-grid');
         craftGrid.innerHTML = '';
         for (let adv in advRes) {
-            const a = advRes[adv], basic = a.from, need = a.cost;
-            const have = resources[basic], can = have >= need;
-            const bInfo = basicRes[basic];
-            craftGrid.innerHTML += `<div class="craft-card"><div style="font-size:24px">${a.icon}</div><div style="font-size:13px;font-weight:bold;color:var(--text)">${a.name}</div><div style="font-size:11px;color:var(--muted)">(<span class="${can ? '' : 'missing-res'}">${need}</span> ${bInfo.icon} ${bInfo.name})</div><div class="craft-actions"><button class="craft-btn ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','single',event)">צור 1</button><button class="craft-btn btn-max ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','max',event)">הכל</button></div></div>`;
+            const a = advRes[adv];
+            if (a.ingredients) {
+                // Multi-ingredient recipe
+                const entries = Object.entries(a.ingredients);
+                const canAll = entries.every(([r, amt]) => resources[r] >= amt);
+                const costStr = entries.map(([r, amt]) => {
+                    const ri = basicRes[r] || advRes[r] || { icon: '?', name: r };
+                    return `<span class="${resources[r] >= amt ? '' : 'missing-res'}">${amt}</span> ${ri.icon} ${ri.name}`;
+                }).join(' + ');
+                const rarityInfo = RARITY[a.rarity];
+                craftGrid.innerHTML += `<div class="craft-card"><div style="font-size:24px">${a.icon}</div><div style="font-size:13px;font-weight:bold;color:var(--text)">${a.name} <span style="font-size:10px;color:${rarityInfo.color}">[${rarityInfo.name}]</span></div><div style="font-size:11px;color:var(--muted)">(${costStr})</div><div class="craft-actions"><button class="craft-btn ${canAll ? '' : 'disabled-btn'}" onclick="craft('${adv}','single',event)">צור 1</button><button class="craft-btn btn-max ${canAll ? '' : 'disabled-btn'}" onclick="craft('${adv}','max',event)">הכל</button></div></div>`;
+            } else {
+                // Simple recipe
+                const basic = a.from, need = a.cost;
+                const have = resources[basic], can = have >= need;
+                const bInfo = basicRes[basic];
+                craftGrid.innerHTML += `<div class="craft-card"><div style="font-size:24px">${a.icon}</div><div style="font-size:13px;font-weight:bold;color:var(--text)">${a.name}</div><div style="font-size:11px;color:var(--muted)">(<span class="${can ? '' : 'missing-res'}">${need}</span> ${bInfo.icon} ${bInfo.name})</div><div class="craft-actions"><button class="craft-btn ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','single',event)">צור 1</button><button class="craft-btn btn-max ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','max',event)">הכל</button></div></div>`;
+            }
         }
     }
 
