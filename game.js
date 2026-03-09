@@ -324,60 +324,59 @@ function updateUI() {
             ml.innerHTML += createMarketRow(a, advRes[a].name, p, advRes[a].rarity);
         }
     }
-}
 
-// Board
-const board = document.getElementById('board-section'); board.innerHTML = '';
-tiles.forEach((tile, i) => {
-    const isRed = (tile.number === 6 || tile.number === 8) ? 'red' : '';
-    const el = document.createElement('div'); el.className = 'tile'; el.setAttribute('data-type', tile.type);
-    if (tile.type === 'empty') {
-        el.style.padding = '12px 8px';
-        let ch = '<div class="empty-choices">';
-        for (let bt of buildingTypes) {
-            const b = BUILDINGS[bt];
-            ch += `<button class="choice-btn" onclick="event.stopPropagation();setTileType(${i},'${bt}',event)" title="${b.name}"><img src="images/${bt}.png" class="choice-img" onerror="this.style.display='none';this.parentNode.insertAdjacentText('afterbegin','${b.icon}')"><span class="choice-label">${b.name}</span></button>`;
+    // Board
+    const board = document.getElementById('board-section'); board.innerHTML = '';
+    tiles.forEach((tile, i) => {
+        const isRed = (tile.number === 6 || tile.number === 8) ? 'red' : '';
+        const el = document.createElement('div'); el.className = 'tile'; el.setAttribute('data-type', tile.type);
+        if (tile.type === 'empty') {
+            el.style.padding = '12px 8px';
+            let ch = '<div class="empty-choices">';
+            for (let bt of buildingTypes) {
+                const b = BUILDINGS[bt];
+                ch += `<button class="choice-btn" onclick="event.stopPropagation();setTileType(${i},'${bt}',event)" title="${b.name}"><img src="images/${bt}.png" class="choice-img" onerror="this.style.display='none';this.parentNode.insertAdjacentText('afterbegin','${b.icon}')"><span class="choice-label">${b.name}</span></button>`;
+            }
+            el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>🏳️ שטח ריק</strong><br><span style="font-size:11px;color:var(--muted)">בחר מבנה</span></div>${ch}</div>`;
+        } else if (BUILDINGS[tile.type]) {
+            const b = BUILDINGS[tile.type];
+            el.style.backgroundImage = `url('images/${tile.type}.png')`;
+            el.classList.add('tile-with-img');
+            el.onclick = () => openTileDetail(i);
+            el.innerHTML = `<div class="tile-overlay"></div><div class="tile-compact"><div class="tile-number ${isRed}">${tile.number}</div><div class="tile-level-badge">${b.icon} Lv.${tile.level}</div></div>`;
         }
-        el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>🏳️ שטח ריק</strong><br><span style="font-size:11px;color:var(--muted)">בחר מבנה</span></div>${ch}</div>`;
-    } else if (BUILDINGS[tile.type]) {
-        const b = BUILDINGS[tile.type];
-        el.style.backgroundImage = `url('images/${tile.type}.png')`;
-        el.classList.add('tile-with-img');
-        el.onclick = () => openTileDetail(i);
-        el.innerHTML = `<div class="tile-overlay"></div><div class="tile-compact"><div class="tile-number ${isRed}">${tile.number}</div><div class="tile-level-badge">${b.icon} Lv.${tile.level}</div></div>`;
+        board.appendChild(el);
+    });
+
+    // Resources modal (only when open)
+    const resModal = document.getElementById('resourcesModal');
+    if (resModal && resModal.style.display !== 'none') {
+        const rl = document.getElementById('resources-list');
+        if (rl) {
+            let rhtml = '<div style="text-align:right;">';
+            rhtml += '<div style="font-size:13px;font-weight:bold;color:var(--muted);margin:8px 0 6px">📋 חומרי גלם</div>';
+            for (let k in basicRes) {
+                const r = basicRes[k];
+                const rarityInfo = RARITY[r.rarity];
+                rhtml += `<div class="detail-prod-item" style="margin-bottom:4px"><span style="font-size:20px">${r.icon}</span><div style="flex:1"><strong>${r.name}</strong> <span style="font-size:10px;color:${rarityInfo.color}">[${rarityInfo.name}]</span></div><div style="font-size:16px;font-weight:bold;color:var(--gold)">${resources[k]}</div></div>`;
+            }
+            rhtml += '<div style="font-size:13px;font-weight:bold;color:var(--muted);margin:12px 0 6px">🔧 חומרים מעובדים</div>';
+            for (let k in advRes) {
+                const r = advRes[k];
+                const rarityInfo = RARITY[r.rarity];
+                rhtml += `<div class="detail-prod-item" style="margin-bottom:4px"><span style="font-size:20px">${r.icon}</span><div style="flex:1"><strong>${r.name}</strong> <span style="font-size:10px;color:${rarityInfo.color}">[${rarityInfo.name}]</span></div><div style="font-size:16px;font-weight:bold;color:var(--gold)">${resources[k]}</div></div>`;
+            }
+            rhtml += '</div>';
+            rl.innerHTML = rhtml;
+        }
     }
-    board.appendChild(el);
-});
 
-// Resources modal (only when open)
-const resModal = document.getElementById('resourcesModal');
-if (resModal && resModal.style.display !== 'none') {
-    const rl = document.getElementById('resources-list');
-    if (rl) {
-        let rhtml = '<div style="text-align:right;">';
-        rhtml += '<div style="font-size:13px;font-weight:bold;color:var(--muted);margin:8px 0 6px">📋 חומרי גלם</div>';
-        for (let k in basicRes) {
-            const r = basicRes[k];
-            const rarityInfo = RARITY[r.rarity];
-            rhtml += `<div class="detail-prod-item" style="margin-bottom:4px"><span style="font-size:20px">${r.icon}</span><div style="flex:1"><strong>${r.name}</strong> <span style="font-size:10px;color:${rarityInfo.color}">[${rarityInfo.name}]</span></div><div style="font-size:16px;font-weight:bold;color:var(--gold)">${resources[k]}</div></div>`;
-        }
-        rhtml += '<div style="font-size:13px;font-weight:bold;color:var(--muted);margin:12px 0 6px">🔧 חומרים מעובדים</div>';
-        for (let k in advRes) {
-            const r = advRes[k];
-            const rarityInfo = RARITY[r.rarity];
-            rhtml += `<div class="detail-prod-item" style="margin-bottom:4px"><span style="font-size:20px">${r.icon}</span><div style="flex:1"><strong>${r.name}</strong> <span style="font-size:10px;color:${rarityInfo.color}">[${rarityInfo.name}]</span></div><div style="font-size:16px;font-weight:bold;color:var(--gold)">${resources[k]}</div></div>`;
-        }
-        rhtml += '</div>';
-        rl.innerHTML = rhtml;
+    // Throttled autoSave (every 5 seconds instead of every updateUI call)
+    const now = Date.now();
+    if (!window._lastAutoSave || now - window._lastAutoSave >= 5000) {
+        window._lastAutoSave = now;
+        autoSave();
     }
-}
-
-// Throttled autoSave (every 5 seconds instead of every updateUI call)
-const now = Date.now();
-if (!window._lastAutoSave || now - window._lastAutoSave >= 5000) {
-    window._lastAutoSave = now;
-    autoSave();
-}
 }
 
 // Open tile detail modal
