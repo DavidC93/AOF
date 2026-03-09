@@ -572,8 +572,30 @@
             background-color: rgba(230, 126, 34, 0.7);
         }
 
-        .btn-menu {
-            background: linear-gradient(135deg, rgba(52, 73, 94, 0.7), rgba(35, 50, 70, 0.7));
+        .btn-resources {
+            background-image: url('images/resources.png');
+            background-color: rgba(39, 174, 96, 0.7);
+        }
+
+        .menu-float-btn {
+            position: absolute;
+            left: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 1px solid var(--glass3);
+            background: rgba(30, 35, 60, 0.85);
+            color: white;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            z-index: 5;
+            padding: 0;
         }
 
         /* ===== Modals ===== */
@@ -1037,6 +1059,7 @@
             <div style="flex:1; text-align:center;">⚔️ <span id="res-power">0</span></div>
             <div style="flex:1; text-align:center;">🧪 <span id="res-research">0</span></div>
             <div id="res-toggle-icon" class="toggle-icon">▼</div>
+            <button class="menu-float-btn" onclick="event.stopPropagation();openModal('menuModal')">⚙️</button>
         </div>
         <div id="collapsible-res" style="display: none; flex-direction: column;">
             <div class="res-row basic" id="res-row-basic1">
@@ -1133,8 +1156,18 @@
                     צבא</span></button>
             <button class="nav-btn btn-market" onclick="openModal('marketModal')"><span class="nav-btn-label">⚖️
                     שוק</span></button>
-            <button class="nav-btn btn-menu" onclick="openModal('menuModal')"><span class="nav-btn-label">⚙️
-                    תפריט</span></button>
+            <button class="nav-btn btn-resources" onclick="openModal('resourcesModal')"><span class="nav-btn-label">📦
+                    משאבים</span></button>
+        </div>
+    </div>
+
+    <!-- Resources Modal -->
+    <div id="resourcesModal" class="modal-overlay">
+        <div class="modal-content center-text">
+            <button class="close-btn" onclick="closeModal('resourcesModal')">×</button>
+            <img src="images/resources.png" class="modal-banner" onerror="this.style.display='none'">
+            <h3 class="modal-title">📦 מלאי משאבים</h3>
+            <div id="resources-list"></div>
         </div>
     </div>
 
@@ -1166,10 +1199,8 @@
                 </div>
             </div>
             <div class="cheat-row">
-                <strong>💾 משחק:</strong>
+                <strong>🗑️ משחק:</strong>
                 <div class="cheat-input-group" style="margin-top:8px;">
-                    <button class="cheat-btn" style="flex:1; background:var(--green);" onclick="saveGame(event)">💾
-                        שמור מקומי</button>
                     <button class="cheat-btn" style="flex:1; background:var(--red);" onclick="resetGame(event)">🗑️ משחק
                         חדש</button>
                 </div>

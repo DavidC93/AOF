@@ -57,7 +57,7 @@ function rollDice() {
                     const items = produceFromBuilding(t);
                     items.forEach(p => {
                         resources[p.res] += p.amt;
-                        produced.push(`${p.amt} ${icons[p.res]}`);
+                        produced.push(`${p.amt} ${icons[p.res]} ${basicRes[p.res] ? basicRes[p.res].name : p.res}`);
                     });
                 }
             });
