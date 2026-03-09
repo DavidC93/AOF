@@ -579,7 +579,7 @@
 
         .menu-float-btn {
             position: absolute;
-            left: 6px;
+            right: 6px;
             top: 50%;
             transform: translateY(-50%);
             width: 30px;
@@ -1053,56 +1053,12 @@
 
 <body>
     <div id="resource-bar">
-        <div class="top-fixed" onclick="toggleResources()">
+        <div class="top-fixed">
             <div style="flex:1; text-align:center;">🪙 <span id="res-coins">0</span></div>
             <div style="flex:1; text-align:center;">👥 <span id="res-pop">0/5</span></div>
             <div style="flex:1; text-align:center;">⚔️ <span id="res-power">0</span></div>
             <div style="flex:1; text-align:center;">🧪 <span id="res-research">0</span></div>
-            <div id="res-toggle-icon" class="toggle-icon">▼</div>
             <button class="menu-float-btn" onclick="event.stopPropagation();openModal('menuModal')">⚙️</button>
-        </div>
-        <div id="collapsible-res" style="display: none; flex-direction: column;">
-            <div class="res-row basic" id="res-row-basic1">
-                <div class="res-item" style="width:25%">🌲 <span class="res-count" id="res-wood">0</span></div>
-                <div class="res-item" style="width:25%">🪨 <span class="res-count" id="res-stone">0</span></div>
-                <div class="res-item" style="width:25%">🌾 <span class="res-count" id="res-wheat">0</span></div>
-                <div class="res-item" style="width:25%">🐑 <span class="res-count" id="res-wool">0</span></div>
-            </div>
-            <div class="res-row basic" id="res-row-basic2" style="border-top:none;">
-                <div class="res-item" style="width:25%">⛰️ <span class="res-count" id="res-ore">0</span></div>
-                <div class="res-item" style="width:25%">🦌 <span class="res-count" id="res-leather">0</span></div>
-                <div class="res-item" style="width:25%">⚫ <span class="res-count" id="res-coal">0</span></div>
-                <div class="res-item" style="width:25%">💎 <span class="res-count" id="res-nickelOre"
-                        style="color:#4090ff">0</span></div>
-            </div>
-            <div class="res-row advanced" id="res-row-adv">
-                <div class="res-item" style="width:20%" title="קרש">🪵 <span class="res-count" id="res-plank">0</span>
-                </div>
-                <div class="res-item" style="width:20%" title="לבנה">🧱 <span class="res-count" id="res-brick">0</span>
-                </div>
-                <div class="res-item" style="width:20%" title="לחם">🍞 <span class="res-count" id="res-bread">0</span>
-                </div>
-                <div class="res-item" style="width:20%" title="בד">🧵 <span class="res-count" id="res-cloth">0</span>
-                </div>
-                <div class="res-item" style="width:20%" title="פלדה">⚙️ <span class="res-count" id="res-steel">0</span>
-                </div>
-            </div>
-            <div class="res-row military">
-                <div class="res-item" style="width:25%">👨 אדם <span class="res-count" id="res-people">0</span></div>
-                <div class="res-item" style="width:25%">🗡️ חרב <span class="res-count" id="res-swords">0</span></div>
-                <div class="res-item" style="width:25%">🦺 שריון <span class="res-count" id="res-armors">0</span></div>
-                <div class="res-item" style="width:25%">💠 מגן <span class="res-count" id="res-shields">0</span></div>
-            </div>
-            <div class="res-row military" style="border-top:none;">
-                <div class="res-item" style="width:50%">🏹 קשת (נשק) <span class="res-count" id="res-bows">0</span>
-                </div>
-                <div class="res-item" style="width:50%">🐎 סוס <span class="res-count" id="res-horses">0</span></div>
-            </div>
-            <div class="res-row military" style="border-top:none; background: rgba(50,20,60,0.7);">
-                <div class="res-item" style="width:33%">🎯 קשת <span class="res-count" id="res-archers">0</span></div>
-                <div class="res-item" style="width:33%">⚔️ לוחם <span class="res-count" id="res-warriors">0</span></div>
-                <div class="res-item" style="width:33%">🏇 אביר <span class="res-count" id="res-knights">0</span></div>
-            </div>
         </div>
     </div>
 

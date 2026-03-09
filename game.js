@@ -184,11 +184,7 @@ let raidEnemyCount = 0;
 
 function vibe() { if (navigator.vibrate) navigator.vibrate(15); }
 
-function toggleResources() {
-    vibe(); isResExpanded = !isResExpanded;
-    document.getElementById('collapsible-res').style.display = isResExpanded ? 'flex' : 'none';
-    document.getElementById('res-toggle-icon').style.transform = isResExpanded ? 'translateY(-50%) rotate(180deg)' : 'translateY(-50%) rotate(0deg)';
-}
+
 
 function showFeedback(event, text, type = 'success') {
     if (!event) return;
@@ -233,31 +229,7 @@ function updateUI() {
         if (el) el.innerText = resources[res];
     }
 
-    // Resource rows (dynamic)
-    const basicRow1 = document.getElementById('res-row-basic1');
-    const basicRow2 = document.getElementById('res-row-basic2');
-    const advRow = document.getElementById('res-row-adv');
-    if (basicRow1) {
-        const keys1 = ['wood', 'stone', 'wheat', 'wool'];
-        basicRow1.innerHTML = keys1.map(k => {
-            const r = basicRes[k];
-            return `<div class="res-item" style="width:25%">${r.icon} <span class="res-count" id="res-${k}">${resources[k]}</span></div>`;
-        }).join('');
-    }
-    if (basicRow2) {
-        const keys2 = ['ore', 'leather', 'coal', 'nickelOre'];
-        basicRow2.innerHTML = keys2.map(k => {
-            const r = basicRes[k];
-            const rc = RARITY[r.rarity].color;
-            return `<div class="res-item" style="width:25%">${r.icon} <span class="res-count" id="res-${k}" ${r.rarity !== 'common' ? `style="color:${rc}"` : ''}>${resources[k]}</span></div>`;
-        }).join('');
-    }
-    if (advRow) {
-        advRow.innerHTML = Object.keys(advRes).map(k => {
-            const r = advRes[k];
-            return `<div class="res-item" style="width:20%" title="${r.name}">${r.icon} <span class="res-count" id="res-${k}">${resources[k]}</span></div>`;
-        }).join('');
-    }
+
 
     // Town Hall
     document.getElementById('th-level').innerText = townHallLevel;
@@ -277,97 +249,109 @@ function updateUI() {
     document.getElementById('lib-cost-display').innerHTML =
         `<span class="${resources.plank >= lP ? '' : 'missing-res'}">${lP}</span>🪵 <span class="${resources.brick >= lB ? '' : 'missing-res'}">${lB}</span>🧱<br><span class="${resources.steel >= lS ? '' : 'missing-res'}">${lS}</span>⚙️ <span class="${resources.research >= lR ? '' : 'missing-res'}">${lR}</span>🧪`;
 
-    // Crafting grid
-    const craftGrid = document.getElementById('crafting-grid');
-    craftGrid.innerHTML = '';
-    for (let adv in advRes) {
-        const a = advRes[adv], basic = a.from, need = a.cost;
-        const have = resources[basic], can = have >= need;
-        const bInfo = basicRes[basic];
-        craftGrid.innerHTML += `<div class="craft-card"><div style="font-size:24px">${a.icon}</div><div style="font-size:13px;font-weight:bold;color:var(--text)">${a.name}</div><div style="font-size:11px;color:var(--muted)">(<span class="${can ? '' : 'missing-res'}">${need}</span> ${bInfo.icon} ${bInfo.name})</div><div class="craft-actions"><button class="craft-btn ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','single',event)">צור 1</button><button class="craft-btn btn-max ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','max',event)">הכל</button></div></div>`;
+    // Crafting grid (only when crafting modal is open)
+    const craftModal = document.getElementById('craftingModal');
+    if (craftModal && craftModal.style.display !== 'none') {
+        const craftGrid = document.getElementById('crafting-grid');
+        craftGrid.innerHTML = '';
+        for (let adv in advRes) {
+            const a = advRes[adv], basic = a.from, need = a.cost;
+            const have = resources[basic], can = have >= need;
+            const bInfo = basicRes[basic];
+            craftGrid.innerHTML += `<div class="craft-card"><div style="font-size:24px">${a.icon}</div><div style="font-size:13px;font-weight:bold;color:var(--text)">${a.name}</div><div style="font-size:11px;color:var(--muted)">(<span class="${can ? '' : 'missing-res'}">${need}</span> ${bInfo.icon} ${bInfo.name})</div><div class="craft-actions"><button class="craft-btn ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','single',event)">צור 1</button><button class="craft-btn btn-max ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','max',event)">הכל</button></div></div>`;
+        }
     }
 
-    // Military grid (data-driven from militaryConfig)
-    const mg = document.getElementById('military-grid');
-    const totalSoldiers = resources.archers + resources.warriors + resources.knights;
-    const maxSol = MAX_SOLDIERS;
-    const soldierCapFull = totalSoldiers >= maxSol;
-    const availPeople = resources.people;
+    // Military grid (only when military modal is open)
+    const milModal = document.getElementById('militaryModal');
+    if (milModal && milModal.style.display !== 'none') {
+        const mg = document.getElementById('military-grid');
+        const totalSoldiers = resources.archers + resources.warriors + resources.knights;
+        const maxSol = MAX_SOLDIERS;
+        const soldierCapFull = totalSoldiers >= maxSol;
+        const availPeople = resources.people;
 
-    let milHTML = `<div style="grid-column:1/-1;text-align:center;font-size:13px;color:var(--muted);padding:4px 0;">
+        let milHTML = `<div style="grid-column:1/-1;text-align:center;font-size:13px;color:var(--muted);padding:4px 0;">
         חיילים: <strong style="color:${soldierCapFull ? 'var(--red)' : 'var(--green)'}">${totalSoldiers}/${maxSol}</strong>
         &nbsp;|&nbsp; אנשים זמינים: <strong style="color:${availPeople > 0 ? 'var(--blue)' : 'var(--red)'}">${availPeople}</strong> 👨
     </div>`;
 
-    const weapons = militaryConfig.filter(m => m.category === 'weapon');
-    const units = militaryConfig.filter(m => m.category === 'unit');
+        const weapons = militaryConfig.filter(m => m.category === 'weapon');
+        const units = militaryConfig.filter(m => m.category === 'unit');
 
-    // Category: Weapons
-    milHTML += `<div style="grid-column:1/-1;font-size:13px;font-weight:bold;color:var(--muted);padding:8px 0 2px;border-top:1px solid var(--glass2)">🗡️ כלי נשק</div>`;
-    for (const item of weapons) {
-        const costEntries = Object.entries(item.cost);
-        const canAfford = costEntries.every(([res, amt]) => resources[res] >= amt);
-        const costStr = costEntries.map(([res, amt]) => {
-            const have = resources[res] >= amt;
-            const ri = basicRes[res] || advRes[res] || { icon: icons[res] || '?', name: res };
-            return `<span class="${have ? '' : 'missing-res'}">${amt}</span> ${ri.icon} ${ri.name}`;
-        }).join(', ');
-        milHTML += `<div class="craft-card"><div style="font-size:24px">${item.icon}</div><div style="color:var(--text)"><strong>${item.name}</strong></div><div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources[item.id] || 0}</div><div style="font-size:11px;color:var(--muted)">(${costStr})</div><div class="craft-actions"><button class="craft-btn ${canAfford ? '' : 'disabled-btn'}" onclick="craftMilitary('${item.id}',event)">צור</button></div></div>`;
-    }
+        // Category: Weapons
+        milHTML += `<div style="grid-column:1/-1;font-size:13px;font-weight:bold;color:var(--muted);padding:8px 0 2px;border-top:1px solid var(--glass2)">🗡️ כלי נשק</div>`;
+        for (const item of weapons) {
+            const costEntries = Object.entries(item.cost);
+            const canAfford = costEntries.every(([res, amt]) => resources[res] >= amt);
+            const costStr = costEntries.map(([res, amt]) => {
+                const have = resources[res] >= amt;
+                const ri = basicRes[res] || advRes[res] || { icon: icons[res] || '?', name: res };
+                return `<span class="${have ? '' : 'missing-res'}">${amt}</span> ${ri.icon} ${ri.name}`;
+            }).join(', ');
+            milHTML += `<div class="craft-card"><div style="font-size:24px">${item.icon}</div><div style="color:var(--text)"><strong>${item.name}</strong></div><div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources[item.id] || 0}</div><div style="font-size:11px;color:var(--muted)">(${costStr})</div><div class="craft-actions"><button class="craft-btn ${canAfford ? '' : 'disabled-btn'}" onclick="craftMilitary('${item.id}',event)">צור</button></div></div>`;
+        }
 
-    // Category: Units
-    milHTML += `<div style="grid-column:1/-1;font-size:13px;font-weight:bold;color:var(--muted);padding:8px 0 2px;border-top:1px solid var(--glass2)">⚔️ יחידות צבא</div>`;
-    for (const item of units) {
-        const costEntries = Object.entries(item.cost);
-        const canAfford = costEntries.every(([res, amt]) => resources[res] >= amt) && !soldierCapFull;
-        const costStr = costEntries.map(([res, amt]) => {
-            const have = resources[res] >= amt;
-            const ri = basicRes[res] || advRes[res] || { icon: icons[res] || '👨', name: res === 'people' ? 'אדם' : res };
-            return `<span class="${have ? '' : 'missing-res'}">${amt}</span> ${ri.icon || icons[res]} ${ri.name}`;
-        }).join(', ');
-        milHTML += `<div class="craft-card"><div style="font-size:24px">${item.icon}</div><div style="color:var(--text)"><strong>${item.name}</strong> (כוח ${item.power})</div>
+        // Category: Units
+        milHTML += `<div style="grid-column:1/-1;font-size:13px;font-weight:bold;color:var(--muted);padding:8px 0 2px;border-top:1px solid var(--glass2)">⚔️ יחידות צבא</div>`;
+        for (const item of units) {
+            const costEntries = Object.entries(item.cost);
+            const canAfford = costEntries.every(([res, amt]) => resources[res] >= amt) && !soldierCapFull;
+            const costStr = costEntries.map(([res, amt]) => {
+                const have = resources[res] >= amt;
+                const ri = basicRes[res] || advRes[res] || { icon: icons[res] || '👨', name: res === 'people' ? 'אדם' : res };
+                return `<span class="${have ? '' : 'missing-res'}">${amt}</span> ${ri.icon || icons[res]} ${ri.name}`;
+            }).join(', ');
+            milHTML += `<div class="craft-card"><div style="font-size:24px">${item.icon}</div><div style="color:var(--text)"><strong>${item.name}</strong> (כוח ${item.power})</div>
         ${item.hp > 0 ? `<div style="font-size:10px;color:var(--muted);display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin:2px 0"><span title="חיים">❤️${item.hp}</span><span title="התקפה">⚔️${item.atk}</span><span title="מהירות">💨${Number(item.speed || 1).toFixed(1)}</span><span title="טווח">📏${item.range_m}</span><span title="דיוק">🎯${Math.round((item.accuracy || 0.9) * 100)}%</span><span title="שריון">🛡️${item.armor || 0}</span></div>` : ''}
         <div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources[item.id] || 0}</div><div style="font-size:11px;color:var(--muted)">(${costStr})</div><div class="craft-actions"><button class="craft-btn btn-soldier ${canAfford ? '' : 'disabled-btn'}" onclick="craftMilitary('${item.id}',event)">אמן</button><button class="craft-btn ${(resources[item.id] || 0) > 0 ? '' : 'disabled-btn'}" style="background:var(--red)" onclick="disassembleSoldier('${item.id}',event)">פרק</button></div></div>`;
-    }
-
-    mg.innerHTML = milHTML;
-
-    // Market
-    const ml = document.getElementById('market-list'); ml.innerHTML = '';
-    ml.innerHTML = `<div style="text-align:center;padding:8px 0;font-size:14px;font-weight:bold;color:var(--gold);border-bottom:1px solid var(--glass2);margin-bottom:8px;">🪙 מטבעות: ${resources.coins}</div>`;
-    for (let b in basicRes) {
-        const p = getPrice(b);
-        ml.innerHTML += createMarketRow(b, basicRes[b].name, p, basicRes[b].rarity);
-    }
-    for (let a in advRes) {
-        const p = getPrice(a);
-        ml.innerHTML += createMarketRow(a, advRes[a].name, p, advRes[a].rarity);
-    }
-
-    // Board
-    const board = document.getElementById('board-section'); board.innerHTML = '';
-    tiles.forEach((tile, i) => {
-        const isRed = (tile.number === 6 || tile.number === 8) ? 'red' : '';
-        const el = document.createElement('div'); el.className = 'tile'; el.setAttribute('data-type', tile.type);
-        if (tile.type === 'empty') {
-            el.style.padding = '12px 8px';
-            let ch = '<div class="empty-choices">';
-            for (let bt of buildingTypes) {
-                const b = BUILDINGS[bt];
-                ch += `<button class="choice-btn" onclick="event.stopPropagation();setTileType(${i},'${bt}',event)" title="${b.name}"><img src="images/${bt}.png" class="choice-img" onerror="this.style.display='none';this.parentNode.insertAdjacentText('afterbegin','${b.icon}')"><span class="choice-label">${b.name}</span></button>`;
-            }
-            el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>🏳️ שטח ריק</strong><br><span style="font-size:11px;color:var(--muted)">בחר מבנה</span></div>${ch}</div>`;
-        } else if (BUILDINGS[tile.type]) {
-            const b = BUILDINGS[tile.type];
-            el.style.backgroundImage = `url('images/${tile.type}.png')`;
-            el.classList.add('tile-with-img');
-            el.onclick = () => openTileDetail(i);
-            el.innerHTML = `<div class="tile-overlay"></div><div class="tile-compact"><div class="tile-number ${isRed}">${tile.number}</div><div class="tile-level-badge">${b.icon} Lv.${tile.level}</div></div>`;
         }
-        board.appendChild(el);
-    });
 
-    // Resources modal
+        mg.innerHTML = milHTML;
+    }
+
+    // Market (only when market modal is open)
+    const mktModal = document.getElementById('marketModal');
+    if (mktModal && mktModal.style.display !== 'none') {
+        const ml = document.getElementById('market-list'); ml.innerHTML = '';
+        ml.innerHTML = `<div style="text-align:center;padding:8px 0;font-size:14px;font-weight:bold;color:var(--gold);border-bottom:1px solid var(--glass2);margin-bottom:8px;">🪙 מטבעות: ${resources.coins}</div>`;
+        for (let b in basicRes) {
+            const p = getPrice(b);
+            ml.innerHTML += createMarketRow(b, basicRes[b].name, p, basicRes[b].rarity);
+        }
+        for (let a in advRes) {
+            const p = getPrice(a);
+            ml.innerHTML += createMarketRow(a, advRes[a].name, p, advRes[a].rarity);
+        }
+    }
+}
+
+// Board
+const board = document.getElementById('board-section'); board.innerHTML = '';
+tiles.forEach((tile, i) => {
+    const isRed = (tile.number === 6 || tile.number === 8) ? 'red' : '';
+    const el = document.createElement('div'); el.className = 'tile'; el.setAttribute('data-type', tile.type);
+    if (tile.type === 'empty') {
+        el.style.padding = '12px 8px';
+        let ch = '<div class="empty-choices">';
+        for (let bt of buildingTypes) {
+            const b = BUILDINGS[bt];
+            ch += `<button class="choice-btn" onclick="event.stopPropagation();setTileType(${i},'${bt}',event)" title="${b.name}"><img src="images/${bt}.png" class="choice-img" onerror="this.style.display='none';this.parentNode.insertAdjacentText('afterbegin','${b.icon}')"><span class="choice-label">${b.name}</span></button>`;
+        }
+        el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>🏳️ שטח ריק</strong><br><span style="font-size:11px;color:var(--muted)">בחר מבנה</span></div>${ch}</div>`;
+    } else if (BUILDINGS[tile.type]) {
+        const b = BUILDINGS[tile.type];
+        el.style.backgroundImage = `url('images/${tile.type}.png')`;
+        el.classList.add('tile-with-img');
+        el.onclick = () => openTileDetail(i);
+        el.innerHTML = `<div class="tile-overlay"></div><div class="tile-compact"><div class="tile-number ${isRed}">${tile.number}</div><div class="tile-level-badge">${b.icon} Lv.${tile.level}</div></div>`;
+    }
+    board.appendChild(el);
+});
+
+// Resources modal (only when open)
+const resModal = document.getElementById('resourcesModal');
+if (resModal && resModal.style.display !== 'none') {
     const rl = document.getElementById('resources-list');
     if (rl) {
         let rhtml = '<div style="text-align:right;">';
@@ -386,8 +370,14 @@ function updateUI() {
         rhtml += '</div>';
         rl.innerHTML = rhtml;
     }
+}
 
+// Throttled autoSave (every 5 seconds instead of every updateUI call)
+const now = Date.now();
+if (!window._lastAutoSave || now - window._lastAutoSave >= 5000) {
+    window._lastAutoSave = now;
     autoSave();
+}
 }
 
 // Open tile detail modal
