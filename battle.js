@@ -8,11 +8,39 @@ const TEAM_STYLE = {
     enemy: { glow: "rgba(255,110,110,.80)", ring: "rgba(255,85,85,.98)", hpStroke: "rgba(255,140,140,.78)", hpBack: "rgba(255,110,110,.14)", tint: "rgba(255,80,80,.22)", arrow: "rgba(255,160,160,.95)" }
 };
 
-const UNIT_STATS = {
+const UNIT_STATS_DEFAULT = {
     warrior: { name: "לוחם", hp: 10, atk: 2, rate: 1.0, range_m: 1, speedStat: 1.0, acc: 0.90, armor: 10, pen: 0, shape: "circle", color: "#6aa7ff" },
     knight: { name: "אביר", hp: 20, atk: 5, rate: 1.2, range_m: 2, speedStat: 2.2, acc: 0.80, armor: 20, pen: 0, shape: "square", color: "#9aa7ff" },
     archer: { name: "קשת", hp: 8, atk: 3, rate: 1.5, range_m: 10, speedStat: 1.2, acc: 0.85, armor: 5, pen: 10, shape: "triangle", color: "#6ff0b0", projectile: true }
 };
+
+// Map militaryConfig id to battle typeKey
+const UNIT_ID_MAP = { archers: 'archer', warriors: 'warrior', knights: 'knight' };
+
+function getUnitStats() {
+    const stats = { ...UNIT_STATS_DEFAULT };
+    const units = militaryConfig.filter(m => m.category === 'unit');
+    for (const u of units) {
+        const key = UNIT_ID_MAP[u.id] || u.id;
+        if (u.hp > 0) { // Has combat stats from DB
+            stats[key] = {
+                name: u.name,
+                hp: Number(u.hp),
+                atk: Number(u.atk),
+                rate: Number(u.rate),
+                range_m: Number(u.range_m),
+                speedStat: Number(u.speed),
+                acc: Number(u.accuracy),
+                armor: Number(u.armor),
+                pen: Number(u.penetration) || 0,
+                shape: u.shape || 'circle',
+                color: u.color || '#6aa7ff',
+                projectile: !!u.is_ranged
+            };
+        }
+    }
+    return stats;
+}
 
 let bUnits = [], bProjectiles = [], bEffects = [], bFloaters = [];
 let bRunning = false, bPaused = false, bLastT = 0, bBattleOver = false;
@@ -24,6 +52,7 @@ function bDist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y) }
 function bRound1(x) { return Math.round(x * 10) / 10 }
 
 function bMakeUnit(typeKey, team, x, y) {
+    const UNIT_STATS = getUnitStats();
     const t = UNIT_STATS[typeKey];
     return {
         id: String(Math.random()).slice(2), typeKey, team, x, y, r: 14,
@@ -114,6 +143,7 @@ function bUpdate(dt) {
     for (const p of bProjectiles) {
         if (!p.alive) continue;
         const shooter = bUnits.find(u => u.id === p.sid);
+        const UNIT_STATS = getUnitStats();
         const atk = shooter || { team: p.sTeam, typeKey: p.sType, atk: UNIT_STATS[p.sType].atk, pen: UNIT_STATS[p.sType].pen, acc: UNIT_STATS[p.sType].acc };
         const tgt = bUnits.find(u => u.id === p.tid);
         let tx, ty;

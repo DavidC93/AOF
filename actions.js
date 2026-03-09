@@ -119,39 +119,49 @@ const MAX_SOLDIERS = 10;
 function getTotalSoldiers() { return resources.archers + resources.warriors + resources.knights; }
 
 function craftMilitary(type, event) {
-    vibe(); let m = [];
-    // Equipment crafting (no soldier cap)
-    if (type === 'swords') { if (resources.steel < 2) m.push(`${2 - resources.steel} ⚙️ פלדה`); if (!m.length) { resources.steel -= 2; resources.swords++; showFeedback(event, '+1 🗡️'); } }
-    else if (type === 'armors') { if (resources.steel < 2) m.push(`${2 - resources.steel} ⚙️ פלדה`); if (!m.length) { resources.steel -= 2; resources.armors++; showFeedback(event, '+1 🦺'); } }
-    else if (type === 'shields') { if (resources.steel < 4) m.push(`${4 - resources.steel} ⚙️ פלדה`); if (!m.length) { resources.steel -= 4; resources.shields++; showFeedback(event, '+1 💠'); } }
-    else if (type === 'bows') { if (resources.plank < 3) m.push(`${3 - resources.plank} 🪵 קרשים`); if (!m.length) { resources.plank -= 3; resources.bows++; showFeedback(event, '+1 🏹'); } }
-    else if (type === 'horses') { if (resources.bread < 5) m.push(`${5 - resources.bread} 🍞 לחם`); if (!m.length) { resources.bread -= 5; resources.horses++; showFeedback(event, '+1 🐎'); } }
-    // Soldier training (capped at MAX_SOLDIERS)
-    else if (type === 'archers') {
-        if (getTotalSoldiers() >= MAX_SOLDIERS) { alert(`מקסימום ${MAX_SOLDIERS} חיילים!`); return; }
-        if (resources.people < 1) m.push('1 👨 אדם'); if (resources.bows < 1) m.push('1 🏹 קשת');
-        if (!m.length) { resources.people--; resources.bows--; resources.archers++; showFeedback(event, '+1 🎯'); }
+    vibe();
+    const item = getMilItem(type);
+    if (!item) { SFX.play('error'); return; }
+
+    // Check soldier cap for units
+    if (item.category === 'unit' && getTotalSoldiers() >= MAX_SOLDIERS) {
+        SFX.play('error'); alert(`מקסימום ${MAX_SOLDIERS} חיילים!`); return;
     }
-    else if (type === 'warriors') {
-        if (getTotalSoldiers() >= MAX_SOLDIERS) { alert(`מקסימום ${MAX_SOLDIERS} חיילים!`); return; }
-        if (resources.people < 1) m.push('1 👨 אדם'); if (resources.swords < 1) m.push('1 🗡️ חרב'); if (resources.armors < 1) m.push('1 🦺 שריון');
-        if (!m.length) { resources.people--; resources.swords--; resources.armors--; resources.warriors++; showFeedback(event, '+1 ⚔️'); }
+
+    // Check costs
+    let missing = [];
+    const costEntries = Object.entries(item.cost);
+    for (const [res, amt] of costEntries) {
+        if (resources[res] < amt) {
+            const ri = basicRes[res] || advRes[res] || { icon: icons[res] || '?', name: res === 'people' ? 'אדם' : res };
+            missing.push(`${amt - resources[res]} ${ri.icon || icons[res]} ${ri.name}`);
+        }
     }
-    else if (type === 'knights') {
-        if (getTotalSoldiers() >= MAX_SOLDIERS) { alert(`מקסימום ${MAX_SOLDIERS} חיילים!`); return; }
-        if (resources.people < 1) m.push('1 👨 אדם'); if (resources.swords < 1) m.push('1 🗡️ חרב'); if (resources.armors < 1) m.push('1 🦺 שריון'); if (resources.shields < 1) m.push('1 💠 מגן'); if (resources.horses < 1) m.push('1 🐎 סוס');
-        if (!m.length) { resources.people--; resources.swords--; resources.armors--; resources.shields--; resources.horses--; resources.knights++; showFeedback(event, '+1 🏇'); }
+
+    if (missing.length > 0) {
+        SFX.play('error'); alert("חסרים משאבים:\n" + missing.join('\n')); return;
     }
-    if (m.length > 0) { SFX.play('error'); alert("חסרים משאבים:\n" + m.join('\n')); } else { SFX.play(type === 'swords' || type === 'armors' || type === 'shields' || type === 'bows' || type === 'horses' ? 'craft' : 'train'); updateUI(); }
+
+    // Deduct costs
+    for (const [res, amt] of costEntries) resources[res] -= amt;
+    resources[type]++;
+    showFeedback(event, `+1 ${item.icon}`);
+    SFX.play(item.category === 'weapon' ? 'craft' : 'train');
+    updateUI();
 }
 
-// Disassemble soldiers to recover components
+// Disassemble soldiers to recover components (data-driven)
 function disassembleSoldier(type, event) {
     vibe();
-    if (type === 'archers' && resources.archers > 0) { resources.archers--; resources.people++; resources.bows++; showFeedback(event, '🎯→👨+🏹'); SFX.play('disassemble'); }
-    else if (type === 'warriors' && resources.warriors > 0) { resources.warriors--; resources.people++; resources.swords++; resources.armors++; showFeedback(event, '⚔️→👨+🗡️+🦺'); SFX.play('disassemble'); }
-    else if (type === 'knights' && resources.knights > 0) { resources.knights--; resources.people++; resources.swords++; resources.armors++; resources.shields++; resources.horses++; showFeedback(event, '🏇→👨+🗡️+🦺+💠+🐎'); SFX.play('disassemble'); }
-    else { SFX.play('error'); alert('אין יחידה לפירוק!'); return; }
+    const item = getMilItem(type);
+    if (!item || item.category !== 'unit') { SFX.play('error'); return; }
+    if ((resources[type] || 0) <= 0) { SFX.play('error'); alert('אין יחידה לפירוק!'); return; }
+
+    resources[type]--;
+    // Return all cost components
+    for (const [res, amt] of Object.entries(item.cost)) resources[res] += amt;
+    showFeedback(event, `${item.icon}→ פירוק`);
+    SFX.play('disassemble');
     updateUI();
 }
 
@@ -339,6 +349,7 @@ function resetGame(event) {
 
 // Init
 loadGame();
+loadMilitaryConfig().then(() => updateUI());
 updateUI();
 // Init mute button state
 if (SFX.isMuted()) {

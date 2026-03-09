@@ -35,6 +35,35 @@ for (const k in basicRes) icons[k] = basicRes[k].icon;
 for (const k in advRes) icons[k] = advRes[k].icon;
 icons.empty = '🏳️';
 
+// Military config - loaded from DB, these are fallback defaults
+let militaryConfig = [
+    { id: 'swords', category: 'weapon', name: 'חרב', icon: '🗡️', power: 0, cost: { steel: 2 }, sort_order: 1 },
+    { id: 'armors', category: 'weapon', name: 'שריון', icon: '🦺', power: 0, cost: { steel: 2 }, sort_order: 2 },
+    { id: 'shields', category: 'weapon', name: 'מגן', icon: '💠', power: 0, cost: { steel: 4 }, sort_order: 3 },
+    { id: 'bows', category: 'weapon', name: 'קשת (נשק)', icon: '🏹', power: 0, cost: { plank: 3 }, sort_order: 4 },
+    { id: 'horses', category: 'weapon', name: 'סוס', icon: '🐎', power: 0, cost: { bread: 5 }, sort_order: 5 },
+    { id: 'archers', category: 'unit', name: 'קשת', icon: '🎯', power: 1, cost: { people: 1, bows: 1 }, sort_order: 10, hp: 8, atk: 3, rate: 1.5, range_m: 10, speed: 1.2, accuracy: 0.85, armor: 5, penetration: 10, is_ranged: true, shape: 'triangle', color: '#6ff0b0' },
+    { id: 'warriors', category: 'unit', name: 'לוחם', icon: '⚔️', power: 2, cost: { people: 1, swords: 1, armors: 1 }, sort_order: 11, hp: 10, atk: 2, rate: 1.0, range_m: 1, speed: 1.0, accuracy: 0.90, armor: 10, penetration: 0, is_ranged: false, shape: 'circle', color: '#6aa7ff' },
+    { id: 'knights', category: 'unit', name: 'אביר', icon: '🏇', power: 3, cost: { people: 1, swords: 1, armors: 1, shields: 1, horses: 1 }, sort_order: 12, hp: 20, atk: 5, rate: 1.2, range_m: 2, speed: 2.2, accuracy: 0.80, armor: 20, penetration: 0, is_ranged: false, shape: 'square', color: '#9aa7ff' },
+];
+
+function getMilItem(id) { return militaryConfig.find(m => m.id === id); }
+
+async function loadMilitaryConfig() {
+    try {
+        const res = await fetch('/.netlify/functions/military-config');
+        const data = await res.json();
+        if (data.config && data.config.length > 0) {
+            militaryConfig = data.config;
+            console.log('Military config loaded from DB');
+        }
+    } catch (e) { console.warn('Using fallback military config:', e.message); }
+}
+
+// Add military icons
+icons.swords = '🗡️'; icons.armors = '🦺'; icons.shields = '💠'; icons.bows = '🏹'; icons.horses = '🐎';
+icons.archers = '🎯'; icons.warriors = '⚔️'; icons.knights = '🏇';
+
 // Craft map: advanced -> { basic, cost }
 const craftMap = {};
 for (const k in advRes) craftMap[k] = advRes[k].from;
@@ -178,7 +207,12 @@ function showFeedback(event, text, type = 'success') {
     setTimeout(() => floater.remove(), 800);
 }
 
-function getPlayerPower() { return (resources.archers * 1) + (resources.warriors * 2) + (resources.knights * 3); }
+function getPlayerPower() {
+    let power = 0;
+    const units = militaryConfig.filter(m => m.category === 'unit');
+    for (const u of units) power += (resources[u.id] || 0) * (u.power || 0);
+    return power;
+}
 function getPopulation() { return resources.people + resources.archers + resources.warriors + resources.knights; }
 
 // Rarity badge HTML
@@ -253,25 +287,50 @@ function updateUI() {
         craftGrid.innerHTML += `<div class="craft-card"><div style="font-size:24px">${a.icon}</div><div style="font-size:13px;font-weight:bold;color:var(--text)">${a.name}</div><div style="font-size:11px;color:var(--muted)">(<span class="${can ? '' : 'missing-res'}">${need}</span> ${bInfo.icon} ${bInfo.name})</div><div class="craft-actions"><button class="craft-btn ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','single',event)">צור 1</button><button class="craft-btn btn-max ${can ? '' : 'disabled-btn'}" onclick="craft('${adv}','max',event)">הכל</button></div></div>`;
     }
 
-    // Military grid
+    // Military grid (data-driven from militaryConfig)
     const mg = document.getElementById('military-grid');
-    const cs = resources.steel >= 2, ca = resources.steel >= 2, csh = resources.steel >= 4, cb = resources.plank >= 3, ch = resources.bread >= 5;
-    const cAr = resources.people >= 1 && resources.bows >= 1;
-    const cW = resources.people >= 1 && resources.swords >= 1 && resources.armors >= 1;
-    const cK = resources.people >= 1 && resources.swords >= 1 && resources.armors >= 1 && resources.shields >= 1 && resources.horses >= 1;
     const totalSoldiers = resources.archers + resources.warriors + resources.knights;
-    const maxSol = 10;
+    const maxSol = MAX_SOLDIERS;
     const soldierCapFull = totalSoldiers >= maxSol;
-    mg.innerHTML = `
-        <div style="grid-column:1/-1;text-align:center;font-size:13px;color:var(--muted);padding:4px 0;">חיילים: <strong style="color:${soldierCapFull ? 'var(--red)' : 'var(--green)'}">${totalSoldiers}/${maxSol}</strong></div>
-        <div class="craft-card"><div style="font-size:24px">🗡️</div><div style="color:var(--text)"><strong>חרב</strong></div><div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources.swords}</div><div style="font-size:11px;color:var(--muted)">(<span class="${cs ? '' : 'missing-res'}">${cs ? 2 : 2 - resources.steel}</span> ⚙️ פלדה)</div><div class="craft-actions"><button class="craft-btn ${cs ? '' : 'disabled-btn'}" onclick="craftMilitary('swords',event)">חשל</button></div></div>
-        <div class="craft-card"><div style="font-size:24px">🦺</div><div style="color:var(--text)"><strong>שריון</strong></div><div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources.armors}</div><div style="font-size:11px;color:var(--muted)">(<span class="${ca ? '' : 'missing-res'}">${ca ? 2 : 2 - resources.steel}</span> ⚙️ פלדה)</div><div class="craft-actions"><button class="craft-btn ${ca ? '' : 'disabled-btn'}" onclick="craftMilitary('armors',event)">צור</button></div></div>
-        <div class="craft-card"><div style="font-size:24px">💠</div><div style="color:var(--text)"><strong>מגן</strong></div><div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources.shields}</div><div style="font-size:11px;color:var(--muted)">(<span class="${csh ? '' : 'missing-res'}">${csh ? 4 : 4 - resources.steel}</span> ⚙️ פלדה)</div><div class="craft-actions"><button class="craft-btn ${csh ? '' : 'disabled-btn'}" onclick="craftMilitary('shields',event)">צור</button></div></div>
-        <div class="craft-card"><div style="font-size:24px">🏹</div><div style="color:var(--text)"><strong>קשת (נשק)</strong></div><div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources.bows}</div><div style="font-size:11px;color:var(--muted)">(<span class="${cb ? '' : 'missing-res'}">${cb ? 3 : 3 - resources.plank}</span> 🪵 קרשים)</div><div class="craft-actions"><button class="craft-btn ${cb ? '' : 'disabled-btn'}" onclick="craftMilitary('bows',event)">צור</button></div></div>
-        <div class="craft-card" style="grid-column:1/-1"><div style="font-size:24px">🐎</div><div style="color:var(--text)"><strong>סוס</strong></div><div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources.horses}</div><div style="font-size:11px;color:var(--muted)">(<span class="${ch ? '' : 'missing-res'}">${ch ? 5 : 5 - resources.bread}</span> 🍞 לחם)</div><div class="craft-actions"><button class="craft-btn ${ch ? '' : 'disabled-btn'}" onclick="craftMilitary('horses',event)">אמן</button></div></div>
-        <div class="craft-card"><div style="font-size:24px">🎯</div><div style="color:var(--text)"><strong>קשת</strong> (כוח 1)</div><div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources.archers}</div><div style="font-size:11px;color:var(--muted)">(1👨 אדם, 1🏹 קשת)</div><div class="craft-actions"><button class="craft-btn btn-soldier ${cAr && !soldierCapFull ? '' : 'disabled-btn'}" onclick="craftMilitary('archers',event)">אמן</button><button class="craft-btn ${resources.archers > 0 ? '' : 'disabled-btn'}" style="background:var(--red)" onclick="disassembleSoldier('archers',event)">פרק</button></div></div>
-        <div class="craft-card"><div style="font-size:24px">⚔️</div><div style="color:var(--text)"><strong>לוחם</strong> (כוח 2)</div><div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources.warriors}</div><div style="font-size:11px;color:var(--muted)">(1👨, 1🗡️ חרב, 1🦺 שריון)</div><div class="craft-actions"><button class="craft-btn btn-soldier ${cW && !soldierCapFull ? '' : 'disabled-btn'}" onclick="craftMilitary('warriors',event)">אמן</button><button class="craft-btn ${resources.warriors > 0 ? '' : 'disabled-btn'}" style="background:var(--red)" onclick="disassembleSoldier('warriors',event)">פרק</button></div></div>
-        <div class="craft-card" style="grid-column:1/-1"><div style="font-size:24px">🏇</div><div style="color:var(--text)"><strong>אביר</strong> (כוח 3)</div><div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources.knights}</div><div style="font-size:11px;color:var(--muted)">(👨+🗡️+🦺+1💠 מגן+1🐎 סוס)</div><div class="craft-actions"><button class="craft-btn btn-soldier ${cK && !soldierCapFull ? '' : 'disabled-btn'}" onclick="craftMilitary('knights',event)">אמן</button><button class="craft-btn ${resources.knights > 0 ? '' : 'disabled-btn'}" style="background:var(--red)" onclick="disassembleSoldier('knights',event)">פרק</button></div></div>`;
+    const availPeople = resources.people;
+
+    let milHTML = `<div style="grid-column:1/-1;text-align:center;font-size:13px;color:var(--muted);padding:4px 0;">
+        חיילים: <strong style="color:${soldierCapFull ? 'var(--red)' : 'var(--green)'}">${totalSoldiers}/${maxSol}</strong>
+        &nbsp;|&nbsp; אנשים זמינים: <strong style="color:${availPeople > 0 ? 'var(--blue)' : 'var(--red)'}">${availPeople}</strong> 👨
+    </div>`;
+
+    const weapons = militaryConfig.filter(m => m.category === 'weapon');
+    const units = militaryConfig.filter(m => m.category === 'unit');
+
+    // Category: Weapons
+    milHTML += `<div style="grid-column:1/-1;font-size:13px;font-weight:bold;color:var(--muted);padding:8px 0 2px;border-top:1px solid var(--glass2)">🗡️ כלי נשק</div>`;
+    for (const item of weapons) {
+        const costEntries = Object.entries(item.cost);
+        const canAfford = costEntries.every(([res, amt]) => resources[res] >= amt);
+        const costStr = costEntries.map(([res, amt]) => {
+            const have = resources[res] >= amt;
+            const ri = basicRes[res] || advRes[res] || { icon: icons[res] || '?', name: res };
+            return `<span class="${have ? '' : 'missing-res'}">${amt}</span> ${ri.icon} ${ri.name}`;
+        }).join(', ');
+        milHTML += `<div class="craft-card"><div style="font-size:24px">${item.icon}</div><div style="color:var(--text)"><strong>${item.name}</strong></div><div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources[item.id] || 0}</div><div style="font-size:11px;color:var(--muted)">(${costStr})</div><div class="craft-actions"><button class="craft-btn ${canAfford ? '' : 'disabled-btn'}" onclick="craftMilitary('${item.id}',event)">צור</button></div></div>`;
+    }
+
+    // Category: Units
+    milHTML += `<div style="grid-column:1/-1;font-size:13px;font-weight:bold;color:var(--muted);padding:8px 0 2px;border-top:1px solid var(--glass2)">⚔️ יחידות צבא</div>`;
+    for (const item of units) {
+        const costEntries = Object.entries(item.cost);
+        const canAfford = costEntries.every(([res, amt]) => resources[res] >= amt) && !soldierCapFull;
+        const costStr = costEntries.map(([res, amt]) => {
+            const have = resources[res] >= amt;
+            const ri = basicRes[res] || advRes[res] || { icon: icons[res] || '👨', name: res === 'people' ? 'אדם' : res };
+            return `<span class="${have ? '' : 'missing-res'}">${amt}</span> ${ri.icon || icons[res]} ${ri.name}`;
+        }).join(', ');
+        milHTML += `<div class="craft-card"><div style="font-size:24px">${item.icon}</div><div style="color:var(--text)"><strong>${item.name}</strong> (כוח ${item.power})</div>
+        ${item.hp > 0 ? `<div style="font-size:10px;color:var(--muted);display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin:2px 0"><span title="חיים">❤️${item.hp}</span><span title="התקפה">⚔️${item.atk}</span><span title="מהירות">💨${Number(item.speed || 1).toFixed(1)}</span><span title="טווח">📏${item.range_m}</span><span title="דיוק">🎯${Math.round((item.accuracy || 0.9) * 100)}%</span><span title="שריון">🛡️${item.armor || 0}</span></div>` : ''}
+        <div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources[item.id] || 0}</div><div style="font-size:11px;color:var(--muted)">(${costStr})</div><div class="craft-actions"><button class="craft-btn btn-soldier ${canAfford ? '' : 'disabled-btn'}" onclick="craftMilitary('${item.id}',event)">אמן</button><button class="craft-btn ${(resources[item.id] || 0) > 0 ? '' : 'disabled-btn'}" style="background:var(--red)" onclick="disassembleSoldier('${item.id}',event)">פרק</button></div></div>`;
+    }
+
+    mg.innerHTML = milHTML;
 
     // Market
     const ml = document.getElementById('market-list'); ml.innerHTML = '';
