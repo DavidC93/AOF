@@ -343,28 +343,100 @@ function updateUI() {
         }
     }
 
-    // Board
+    // Board (grouped by building type)
     const board = document.getElementById('board-section'); board.innerHTML = '';
+
+    // Group tiles by type
+    const groups = {};
+    const emptyTiles = [];
     tiles.forEach((tile, i) => {
-        const isRed = (tile.number === 6 || tile.number === 8) ? 'red' : '';
-        const el = document.createElement('div'); el.className = 'tile'; el.setAttribute('data-type', tile.type);
-        if (tile.type === 'empty') {
-            el.style.padding = '12px 8px';
-            let ch = '<div class="empty-choices">';
-            for (let bt of buildingTypes) {
-                const b = BUILDINGS[bt];
-                ch += `<button class="choice-btn" onclick="event.stopPropagation();setTileType(${i},'${bt}',event)" title="${b.name}"><img src="images/${bt}.png" class="choice-img" onerror="this.style.display='none';this.parentNode.insertAdjacentText('afterbegin','${b.icon}')"><span class="choice-label">${b.name}</span></button>`;
-            }
-            el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>🏳️ שטח ריק</strong><br><span style="font-size:11px;color:var(--muted)">בחר מבנה</span></div>${ch}</div>`;
-        } else if (BUILDINGS[tile.type]) {
-            const b = BUILDINGS[tile.type];
+        tile._idx = i; // store original index
+        if (tile.type === 'empty') emptyTiles.push(tile);
+        else {
+            if (!groups[tile.type]) groups[tile.type] = [];
+            groups[tile.type].push(tile);
+        }
+    });
+
+    // Track collapse state globally
+    if (!window._collapsedGroups) window._collapsedGroups = {};
+
+    // Upgrade affordability check
+    function canUpgradeTile(tile) {
+        const cP = tile.level, cS = Math.max(0, tile.level - 1);
+        return resources.plank >= cP && resources.steel >= cS;
+    }
+
+    // Render each building group
+    const groupOrder = ['forest', 'quarry', 'farm', 'mine'];
+    const groupColors = { forest: '#27ae60', quarry: '#6c8da0', farm: '#f1c40f', mine: '#9b59b6' };
+
+    for (const type of groupOrder) {
+        const tilesInGroup = groups[type];
+        if (!tilesInGroup || tilesInGroup.length === 0) continue;
+        const b = BUILDINGS[type];
+        const isCollapsed = !!window._collapsedGroups[type];
+        const upgradeCount = tilesInGroup.filter(t => canUpgradeTile(t)).length;
+
+        // Group header
+        const header = document.createElement('div');
+        header.className = 'tile-group-header';
+        header.style.borderRight = `4px solid ${groupColors[type] || '#555'}`;
+        header.innerHTML = `<span style="font-size:18px">${b.icon}</span> ${b.name} <span class="group-count">${tilesInGroup.length} אזורים${upgradeCount > 0 ? ` · <span style="color:#27ae60">⬆${upgradeCount}</span>` : ''}</span> <span class="group-toggle ${isCollapsed ? 'collapsed' : ''}">▼</span>`;
+        header.onclick = () => {
+            window._collapsedGroups[type] = !window._collapsedGroups[type];
+            updateUI();
+        };
+        board.appendChild(header);
+
+        // Group tiles container
+        const container = document.createElement('div');
+        container.className = `tile-group-tiles${isCollapsed ? ' collapsed' : ''}`;
+        if (!isCollapsed) container.style.maxHeight = '2000px';
+
+        for (const tile of tilesInGroup) {
+            const i = tile._idx;
+            const isRed = (tile.number === 6 || tile.number === 8) ? 'red' : '';
+            const el = document.createElement('div'); el.className = 'tile'; el.setAttribute('data-type', tile.type);
             el.style.backgroundImage = `url('images/${tile.type}.png')`;
             el.classList.add('tile-with-img');
             el.onclick = () => openTileDetail(i);
-            el.innerHTML = `<div class="tile-overlay"></div><div class="tile-compact"><div class="tile-number ${isRed}">${tile.number}</div><div class="tile-level-badge">${b.icon} Lv.${tile.level}</div></div>`;
+            const upgradeBadge = canUpgradeTile(tile) ? '<div class="upgrade-badge">⬆</div>' : '';
+            el.innerHTML = `${upgradeBadge}<div class="tile-overlay"></div><div class="tile-compact"><div class="tile-number ${isRed}">${tile.number}</div><div class="tile-level-badge">${b.icon} Lv.${tile.level}</div></div>`;
+            container.appendChild(el);
         }
-        board.appendChild(el);
-    });
+        board.appendChild(container);
+    }
+
+    // Empty tiles section
+    if (emptyTiles.length > 0) {
+        const isCollapsed = !!window._collapsedGroups['empty'];
+        const header = document.createElement('div');
+        header.className = 'tile-group-header';
+        header.style.borderRight = '4px dashed #555';
+        header.innerHTML = `<span style="font-size:18px">🏳️</span> שטחות ריקים <span class="group-count">${emptyTiles.length}</span> <span class="group-toggle ${isCollapsed ? 'collapsed' : ''}">▼</span>`;
+        header.onclick = () => { window._collapsedGroups['empty'] = !window._collapsedGroups['empty']; updateUI(); };
+        board.appendChild(header);
+
+        const container = document.createElement('div');
+        container.className = `tile-group-tiles${isCollapsed ? ' collapsed' : ''}`;
+        if (!isCollapsed) container.style.maxHeight = '2000px';
+
+        for (const tile of emptyTiles) {
+            const i = tile._idx;
+            const isRed = (tile.number === 6 || tile.number === 8) ? 'red' : '';
+            const el = document.createElement('div'); el.className = 'tile'; el.setAttribute('data-type', 'empty');
+            el.style.padding = '12px 8px';
+            let ch = '<div class="empty-choices">';
+            for (let bt of buildingTypes) {
+                const bb = BUILDINGS[bt];
+                ch += `<button class="choice-btn" onclick="event.stopPropagation();setTileType(${i},'${bt}',event)" title="${bb.name}"><img src="images/${bt}.png" class="choice-img" onerror="this.style.display='none';this.parentNode.insertAdjacentText('afterbegin','${bb.icon}')"><span class="choice-label">${bb.name}</span></button>`;
+            }
+            el.innerHTML = `<div class="tile-number ${isRed}">${tile.number}</div><div class="tile-info"><strong>🏳️ שטח ריק</strong><br><span style="font-size:11px;color:var(--muted)">בחר מבנה</span></div>${ch}</div>`;
+            container.appendChild(el);
+        }
+        board.appendChild(container);
+    }
 
     // Resources modal (only when open)
     const resModal = document.getElementById('resourcesModal');
