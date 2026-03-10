@@ -192,7 +192,7 @@ function setTileType(i, bType, event) { vibe(); tiles[i].type = bType; showFeedb
 function getUpgradeCost(level) {
     const tgt = level + 1; // target level
     return {
-        plank: tgt * 2,
+        plank: (tgt - 1) * 2,
         brick: Math.max(0, (tgt - 2) * 2),
         steel: Math.max(0, (tgt - 3) * 2)
     };
