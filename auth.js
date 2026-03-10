@@ -236,6 +236,10 @@ function scheduleCloudSave() {
 // ===== Init =====
 document.addEventListener('DOMContentLoaded', () => {
     updateAuthUI();
+    // Auto-load from cloud if already logged in (cross-device sync)
+    if (authToken) {
+        cloudLoad(null).then(() => console.log('Cloud save loaded on init'));
+    }
 });
 
 // Hook into autoSave to also schedule cloud save

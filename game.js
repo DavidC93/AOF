@@ -26,7 +26,7 @@ const advRes = {
     brick: { name: 'לבנה', icon: '🧱', rarity: 'common', from: 'stone', cost: 3 },
     bread: { name: 'לחם', icon: '🍞', rarity: 'common', from: 'wheat', cost: 3 },
     cloth: { name: 'בד', icon: '🧵', rarity: 'common', from: 'wool', cost: 3 },
-    steel: { name: 'פלדה', icon: '⚙️', rarity: 'common', from: 'ore', cost: 3 },
+    steel: { name: 'מטיל ברזל', icon: '⚙️', rarity: 'common', from: 'ore', cost: 3 },
     carbon: { name: 'פחמן', icon: '♦️', rarity: 'uncommon', ingredients: { coal: 2 } },
     steelIngot: { name: 'מטיל פלדה', icon: '🔩', rarity: 'uncommon', ingredients: { ore: 2, carbon: 1 } },
     nickelSteel: { name: 'פלדת ניקל', icon: '💠', rarity: 'rare', ingredients: { nickelOre: 3, carbon: 2 } }
@@ -361,10 +361,13 @@ function updateUI() {
     // Track collapse state globally
     if (!window._collapsedGroups) window._collapsedGroups = {};
 
-    // Upgrade affordability check
+    // Upgrade affordability check (uses getUpgradeCost from actions.js)
     function canUpgradeTile(tile) {
-        const cP = tile.level, cS = Math.max(0, tile.level - 1);
-        return resources.plank >= cP && resources.steel >= cS;
+        if (typeof getUpgradeCost !== 'function') return false;
+        const cost = getUpgradeCost(tile.level);
+        return resources.plank >= cost.plank
+            && (cost.brick <= 0 || resources.brick >= cost.brick)
+            && (cost.steel <= 0 || resources.steel >= cost.steel);
     }
 
     // Render each building group
@@ -482,11 +485,15 @@ function openTileDetail(tileIndex) {
         return `<div class="detail-prod-item"><span style="font-size:20px">${ri.icon}</span><div><strong>${ri.name}</strong> <span style="font-size:11px;color:${rarityInfo.color}">[${rarityInfo.name}]</span><br><span style="color:var(--gold);font-weight:bold">${r.pct}%</span></div></div>`;
     }).join('');
 
-    const cP = tile.level, cS = Math.max(0, tile.level - 1);
-    const can = resources.steel >= cS && resources.plank >= cP;
-    let costText = '';
-    if (cS > 0) costText += `<span class="${resources.steel >= cS ? '' : 'missing-res'}">${cS}</span> ⚙️ פלדה + `;
-    costText += `<span class="${resources.plank >= cP ? '' : 'missing-res'}">${cP}</span> 🪵 קרשים`;
+    const cost = getUpgradeCost(tile.level);
+    const can = resources.plank >= cost.plank
+        && (cost.brick <= 0 || resources.brick >= cost.brick)
+        && (cost.steel <= 0 || resources.steel >= cost.steel);
+    let costParts = [];
+    costParts.push(`<span class="${resources.plank >= cost.plank ? '' : 'missing-res'}">${cost.plank}</span> 🪵 קרשים`);
+    if (cost.brick > 0) costParts.push(`<span class="${resources.brick >= cost.brick ? '' : 'missing-res'}">${cost.brick}</span> 🧱 לבנות`);
+    if (cost.steel > 0) costParts.push(`<span class="${resources.steel >= cost.steel ? '' : 'missing-res'}">${cost.steel}</span> ⚙️ מטילי ברזל`);
+    const costText = costParts.join(' + ');
 
     const content = document.getElementById('tile-detail-content');
     content.innerHTML = `

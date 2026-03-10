@@ -189,12 +189,35 @@ function disassembleSoldier(type, event) {
 
 // Tiles
 function setTileType(i, bType, event) { vibe(); tiles[i].type = bType; showFeedback(event, "נבחר!"); updateUI(); }
+function getUpgradeCost(level) {
+    const tgt = level + 1; // target level
+    return {
+        plank: tgt * 2,
+        brick: Math.max(0, (tgt - 2) * 2),
+        steel: Math.max(0, (tgt - 3) * 2)
+    };
+}
+
 function upgradeTile(i, event) {
-    vibe(); const t = tiles[i], cP = t.level, cS = Math.max(0, t.level - 1); let m = [];
-    if (resources.plank < cP) m.push(`${cP - resources.plank} 🪵 קרשים`);
-    if (resources.steel < cS) m.push(`${cS - resources.steel} ⚙️ פלדה`);
-    if (!m.length) { resources.steel -= cS; resources.plank -= cP; t.level++; showFeedback(event, `רמה ${t.level}!`); SFX.play('upgrade'); updateUI(); }
-    else { SFX.play('error'); alert("חסרים משאבים:\n" + m.join('\n')); }
+    vibe();
+    const t = tiles[i];
+    const cost = getUpgradeCost(t.level);
+    let m = [];
+    if (resources.plank < cost.plank) m.push(`${cost.plank - resources.plank} 🪵 קרשים`);
+    if (cost.brick > 0 && resources.brick < cost.brick) m.push(`${cost.brick - resources.brick} 🧱 לבנות`);
+    if (cost.steel > 0 && resources.steel < cost.steel) m.push(`${cost.steel - resources.steel} ⚙️ מטילי ברזל`);
+    if (!m.length) {
+        resources.plank -= cost.plank;
+        if (cost.brick > 0) resources.brick -= cost.brick;
+        if (cost.steel > 0) resources.steel -= cost.steel;
+        t.level++;
+        showFeedback(event, `רמה ${t.level}!`);
+        SFX.play('upgrade');
+        updateUI();
+    } else {
+        SFX.play('error');
+        alert("חסרים משאבים:\n" + m.join('\n'));
+    }
 }
 
 // Roll 10 handler - always enemies (land discovery)
