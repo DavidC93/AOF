@@ -234,6 +234,17 @@ function handleRoll11(log) {
     initiateRaid();
 }
 
+// Calculate army power using DB config
+function getArmyPower(army) {
+    let power = 0;
+    const unitMap = { warriors: 'warriors', knights: 'knights', archers: 'archers' };
+    for (const [key, count] of Object.entries(army)) {
+        const cfg = militaryConfig.find(m => m.id === key);
+        power += count * (cfg ? (cfg.power || 0) : 1);
+    }
+    return power;
+}
+
 // Shared enemy generation
 function generateEnemyArmy() {
     const maxEnemies = Math.min(Math.max(1, discoveredTilesCount), 10);
@@ -293,7 +304,7 @@ function initiateCombat() {
     document.querySelector('#combatModal .modal-title').innerText = '⚔️ אויבים לפניך!';
     document.querySelector('#combatModal .modal-content p').innerText = 'מצאת אדמה חדשה, אך היא מוחזקת על ידי אויבים!';
     pInfo.innerHTML = `⚔️ ${resources.warriors} לוחמים<br>🏇 ${resources.knights} אבירים<br>🎯 ${resources.archers} קשתים<br><strong>כוח: ${getPlayerPower()}</strong>`;
-    const ePower = pendingEnemyArmy.warriors * 2 + pendingEnemyArmy.knights * 3 + pendingEnemyArmy.archers * 1;
+    const ePower = getArmyPower(pendingEnemyArmy);
     eInfo.innerHTML = `⚔️ ${pendingEnemyArmy.warriors} לוחמים<br>🏇 ${pendingEnemyArmy.knights} אבירים<br>🎯 ${pendingEnemyArmy.archers} קשתים<br><strong>כוח: ${ePower}</strong>`;
     const atkBtn = document.getElementById('btn-combat-attack');
     if (getPlayerPower() === 0) { atkBtn.disabled = true; atkBtn.innerText = "אמן חיילים!"; atkBtn.style.background = 'rgba(255,255,255,0.1)'; }
@@ -313,7 +324,7 @@ function initiateRaid() {
     document.querySelector('#combatModal .modal-title').innerText = '🚨 פשיטה על הבסיס!';
     document.querySelector('#combatModal .modal-content p').innerText = 'אויבים תוקפים את הבסיס שלך! הגן את המשאבים!';
     pInfo.innerHTML = `⚔️ ${resources.warriors} לוחמים<br>🏇 ${resources.knights} אבירים<br>🎯 ${resources.archers} קשתים<br><strong>כוח: ${getPlayerPower()}</strong>`;
-    const ePower = pendingEnemyArmy.warriors * 2 + pendingEnemyArmy.knights * 3 + pendingEnemyArmy.archers * 1;
+    const ePower = getArmyPower(pendingEnemyArmy);
     eInfo.innerHTML = `⚔️ ${pendingEnemyArmy.warriors} לוחמים<br>🏇 ${pendingEnemyArmy.knights} אבירים<br>🎯 ${pendingEnemyArmy.archers} קשתים<br><strong>כוח: ${ePower}</strong>`;
     const atkBtn = document.getElementById('btn-combat-attack');
     if (getPlayerPower() === 0) { atkBtn.disabled = true; atkBtn.innerText = "אמן חיילים!"; atkBtn.style.background = 'rgba(255,255,255,0.1)'; }
