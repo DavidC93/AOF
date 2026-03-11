@@ -27,8 +27,9 @@ const advRes = {
     bread: { name: 'לחם', icon: '🍞', rarity: 'common', from: 'wheat', cost: 3 },
     cloth: { name: 'בד', icon: '🧵', rarity: 'common', from: 'wool', cost: 3 },
     steel: { name: 'מטיל ברזל', icon: '⚙️', rarity: 'common', from: 'ore', cost: 3 },
+    woolThread: { name: 'חוט צמר', icon: '🧶', rarity: 'common', from: 'wool', cost: 2 },
     carbon: { name: 'פחמן', icon: '♦️', rarity: 'uncommon', ingredients: { coal: 2 } },
-    steelIngot: { name: 'מטיל פלדה', icon: '🔩', rarity: 'uncommon', ingredients: { ore: 2, carbon: 1 } },
+    steelIngot: { name: 'מטיל פלדה', icon: '🔩', rarity: 'uncommon', ingredients: { steel: 2, carbon: 1 } },
     nickelSteel: { name: 'פלדת ניקל', icon: '💠', rarity: 'rare', ingredients: { nickelOre: 3, carbon: 2 } }
 };
 
@@ -43,7 +44,7 @@ let militaryConfig = [
     { id: 'swords', category: 'weapon', name: 'חרב', icon: '🗡️', power: 0, cost: { steel: 2 }, sort_order: 1 },
     { id: 'armors', category: 'weapon', name: 'שריון', icon: '🦺', power: 0, cost: { steel: 2 }, sort_order: 2 },
     { id: 'shields', category: 'weapon', name: 'מגן', icon: '💠', power: 0, cost: { steel: 4 }, sort_order: 3 },
-    { id: 'bows', category: 'weapon', name: 'קשת (נשק)', icon: '🏹', power: 0, cost: { plank: 3 }, sort_order: 4 },
+    { id: 'bows', category: 'weapon', name: 'קשת (נשק)', icon: '🏹', power: 0, cost: { plank: 3, woolThread: 1 }, sort_order: 4 },
     { id: 'horses', category: 'weapon', name: 'סוס', icon: '🐎', power: 0, cost: { bread: 5 }, sort_order: 5 },
     { id: 'archers', category: 'unit', name: 'קשת', icon: '🎯', power: 1, cost: { people: 1, bows: 1 }, sort_order: 10, hp: 8, atk: 3, rate: 1.5, range_m: 10, speed: 1.2, accuracy: 0.85, armor: 5, penetration: 10, is_ranged: true, shape: 'triangle', color: '#6ff0b0' },
     { id: 'warriors', category: 'unit', name: 'לוחם', icon: '⚔️', power: 2, cost: { people: 1, swords: 1, armors: 1 }, sort_order: 11, hp: 10, atk: 2, rate: 1.0, range_m: 1, speed: 1.0, accuracy: 0.90, armor: 10, penetration: 0, is_ranged: false, shape: 'circle', color: '#6aa7ff' },
@@ -163,7 +164,7 @@ let resources = {
     wood: 6, stone: 6, wheat: 6, wool: 3, ore: 0,
     leather: 0, coal: 0, nickelOre: 0,
     plank: 0, brick: 0, bread: 0, cloth: 0, steel: 0,
-    carbon: 0, steelIngot: 0, nickelSteel: 0,
+    woolThread: 0, carbon: 0, steelIngot: 0, nickelSteel: 0,
     people: 0, swords: 0, armors: 0, shields: 0, bows: 0, horses: 0,
     archers: 0, warriors: 0, knights: 0
 };
