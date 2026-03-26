@@ -8,36 +8,29 @@ const TEAM_STYLE = {
     enemy: { glow: "rgba(255,110,110,.80)", ring: "rgba(255,85,85,.98)", hpStroke: "rgba(255,140,140,.78)", hpBack: "rgba(255,110,110,.14)", tint: "rgba(255,80,80,.22)", arrow: "rgba(255,160,160,.95)" }
 };
 
-const UNIT_STATS_DEFAULT = {
-    warrior: { name: "לוחם", hp: 10, atk: 2, rate: 1.0, range_m: 1, speedStat: 1.0, acc: 0.90, armor: 10, pen: 0, shape: "circle", color: "#6aa7ff" },
-    knight: { name: "אביר", hp: 20, atk: 5, rate: 1.2, range_m: 2, speedStat: 2.2, acc: 0.80, armor: 20, pen: 0, shape: "square", color: "#9aa7ff" },
-    archer: { name: "קשת", hp: 8, atk: 3, rate: 1.5, range_m: 10, speedStat: 1.2, acc: 0.85, armor: 5, pen: 10, shape: "triangle", color: "#6ff0b0", projectile: true }
-};
+const UNIT_STATS_DEFAULT = {};
 
-// Map militaryConfig id to battle typeKey
-const UNIT_ID_MAP = { archers: 'archer', warriors: 'warrior', knights: 'knight' };
+// No fixed mapping needed - IDs are used directly now
 
 function getUnitStats() {
-    const stats = { ...UNIT_STATS_DEFAULT };
+    const stats = {};
     const units = militaryConfig.filter(m => m.category === 'unit');
     for (const u of units) {
-        const key = UNIT_ID_MAP[u.id] || u.id;
-        if (u.hp > 0) { // Has combat stats from DB
-            stats[key] = {
-                name: u.name,
-                hp: Number(u.hp),
-                atk: Number(u.atk),
-                rate: Number(u.rate),
-                range_m: Number(u.range_m),
-                speedStat: Number(u.speed),
-                acc: Number(u.accuracy),
-                armor: Number(u.armor),
-                pen: Number(u.penetration) || 0,
-                shape: u.shape || 'circle',
-                color: u.color || '#6aa7ff',
-                projectile: !!u.is_ranged
-            };
-        }
+        const key = u.id;
+        stats[key] = {
+            name: u.name,
+            hp: Number(u.hp) || 10,
+            atk: Number(u.atk) || 2,
+            rate: Number(u.rate) || 1,
+            range_m: Number(u.range_m) || 1,
+            speedStat: Number(u.speed) || 1,
+            acc: Number(u.accuracy) || 0.75,
+            armor: Number(u.armor) || 0,
+            pen: Number(u.penetration) || 0,
+            shape: u.shape || 'circle',
+            color: u.color || '#ffffff',
+            projectile: !!u.is_ranged
+        };
     }
     return stats;
 }
@@ -58,20 +51,22 @@ function bMakeUnit(typeKey, team, x, y) {
         id: String(Math.random()).slice(2), typeKey, team, x, y, r: 14,
         hp: t.hp, maxHp: t.hp, atk: t.atk, rate: t.rate, range: t.range_m * METER_PX,
         speedStat: t.speedStat, moveSpeed: BASE_MOVE_PX * t.speedStat, acc: t.acc, armor: t.armor, pen: t.pen || 0,
-        cooldown: bRand(0, 0.5), alive: true, color: t.color, shape: t.shape, projectile: !!t.projectile,
+        cooldown: 0, alive: true, color: t.color, shape: t.shape, projectile: !!t.projectile,
         meleeAnimT: 0, meleeAnimDur: 0.16, lungeDx: 0, lungeDy: 0, hitFlashT: 0
     };
 }
 
 function bSpawnTeam(team, counts) {
     const rect = bCanvas.getBoundingClientRect();
-    const w = rect.width, h = rect.height, total = counts.warrior + counts.knight + counts.archer;
+    const w = rect.width, h = rect.height;
+    let total = 0;
+    for (const k in counts) total += (counts[k] || 0);
     if (total <= 0) return;
     const pad = 28, uw = Math.max(200, w - pad * 2);
     const order = [];
-    for (let i = 0; i < counts.warrior; i++) order.push("warrior");
-    for (let i = 0; i < counts.knight; i++) order.push("knight");
-    for (let i = 0; i < counts.archer; i++) order.push("archer");
+    for (const [type, count] of Object.entries(counts)) {
+        for (let i = 0; i < count; i++) order.push(type);
+    }
     for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[order[i], order[j]] = [order[j], order[i]]; }
     const baseY = team === "player" ? (h - 90) : 90;
     for (let i = 0; i < order.length; i++) {
@@ -191,18 +186,22 @@ function bDrawUnit(u) {
     bCtx.fillStyle = u.color; bCtx.lineWidth = 3.2; bCtx.strokeStyle = ts.ring;
     if (u.shape === "circle") { bCtx.beginPath(); bCtx.arc(0, 0, u.r, 0, Math.PI * 2); bCtx.fill(); bCtx.stroke(); }
     else if (u.shape === "square") { bCtx.beginPath(); if (bCtx.roundRect) bCtx.roundRect(-u.r, -u.r, u.r * 2, u.r * 2, 7); else bCtx.rect(-u.r, -u.r, u.r * 2, u.r * 2); bCtx.fill(); bCtx.stroke(); }
+    else if (u.shape === "hexagon") { bCtx.beginPath(); for (let i=0;i<6;i++){const a=Math.PI/3*i-Math.PI/2;bCtx.lineTo(Math.cos(a)*u.r,Math.sin(a)*u.r);} bCtx.closePath(); bCtx.fill(); bCtx.stroke(); }
     else { bCtx.beginPath(); bCtx.moveTo(0, -u.r); bCtx.lineTo(u.r, u.r); bCtx.lineTo(-u.r, u.r); bCtx.closePath(); bCtx.fill(); bCtx.stroke(); }
     // Team tint
     bCtx.shadowBlur = 0; bCtx.globalAlpha = 1; bCtx.fillStyle = ts.tint;
     if (u.shape === "circle") { bCtx.beginPath(); bCtx.arc(0, 0, u.r - 1, 0, Math.PI * 2); bCtx.fill(); }
     else if (u.shape === "square") { bCtx.beginPath(); if (bCtx.roundRect) bCtx.roundRect(-u.r + 1, -u.r + 1, (u.r - 1) * 2, (u.r - 1) * 2, 6); else bCtx.rect(-u.r + 1, -u.r + 1, (u.r - 1) * 2, (u.r - 1) * 2); bCtx.fill(); }
+    else if (u.shape === "hexagon") { const r2=u.r-1; bCtx.beginPath(); for(let i=0;i<6;i++){const a=Math.PI/3*i-Math.PI/2;bCtx.lineTo(Math.cos(a)*r2,Math.sin(a)*r2);} bCtx.closePath(); bCtx.fill(); }
     else { bCtx.beginPath(); bCtx.moveTo(0, -u.r + 1); bCtx.lineTo(u.r - 1, u.r - 1); bCtx.lineTo(-u.r + 1, u.r - 1); bCtx.closePath(); bCtx.fill(); }
     // Outer ring
     bCtx.lineWidth = 2.2; bCtx.strokeStyle = u.team === "enemy" ? "rgba(255,120,120,.85)" : "rgba(235,250,255,.70)"; bCtx.beginPath(); bCtx.arc(0, 0, u.r + 5, 0, Math.PI * 2); bCtx.stroke();
     // Letter
     bCtx.fillStyle = u.team === "enemy" ? "rgba(255,120,120,.85)" : "rgba(255,255,255,.70)"; bCtx.beginPath(); bCtx.arc(0, 0, 8.5, 0, Math.PI * 2); bCtx.fill();
     bCtx.fillStyle = "rgba(0,0,0,.70)"; bCtx.font = "800 12px system-ui"; bCtx.textAlign = "center"; bCtx.textBaseline = "middle";
-    bCtx.fillText(u.typeKey === "warrior" ? "ל" : u.typeKey === "knight" ? "א" : "ק", 0, 0.5);
+    const UNIT_STATS = getUnitStats();
+    const label = (UNIT_STATS[u.typeKey] && UNIT_STATS[u.typeKey].name) ? UNIT_STATS[u.typeKey].name[0] : '?';
+    bCtx.fillText(label, 0, 0.5);
     // Team dot
     bCtx.fillStyle = u.team === "enemy" ? "rgba(255,80,80,1)" : "rgba(190,245,255,1)"; bCtx.beginPath(); bCtx.arc(0, u.r + 9, 4, 0, Math.PI * 2); bCtx.fill();
     bCtx.restore();
@@ -253,9 +252,13 @@ function bResizeCanvas() {
 // === Integration with resource management ===
 function startBattleSimulation() {
     closeModal('combatModal');
-    battlePlayerArmy = { warriors: resources.warriors, knights: resources.knights, archers: resources.archers };
-    // Remove units from resource pool (they go to battle)
-    resources.warriors = 0; resources.knights = 0; resources.archers = 0;
+    // Save all unit resources to battlePlayerArmy and clear them
+    battlePlayerArmy = {};
+    const unitTypes = militaryConfig.filter(m => m.category === 'unit');
+    for (const u of unitTypes) {
+        battlePlayerArmy[u.id] = resources[u.id] || 0;
+        resources[u.id] = 0;
+    }
     updateUI();
 
     const overlay = document.getElementById('battle-overlay');
@@ -268,8 +271,8 @@ function startBattleSimulation() {
     bRunning = true; bPaused = false; bLastT = 0; bBattleOver = false; bWon = false;
     bTimeScale = 1; bEnding = false; bEndTimer = 0;
 
-    bSpawnTeam("enemy", { warrior: pendingEnemyArmy.warriors, knight: pendingEnemyArmy.knights, archer: pendingEnemyArmy.archers });
-    bSpawnTeam("player", { warrior: battlePlayerArmy.warriors, knight: battlePlayerArmy.knights, archer: battlePlayerArmy.archers });
+    bSpawnTeam("enemy", pendingEnemyArmy);
+    bSpawnTeam("player", battlePlayerArmy);
 
     document.getElementById('battle-status').innerHTML = `<b>סטטוס:</b> הקרב בעיצומו`;
     const { p, e } = bAliveCounts();
@@ -280,18 +283,16 @@ function startBattleSimulation() {
 }
 
 function onBattleEnd() {
-    // Count surviving player units
-    let surW = 0, surK = 0, surA = 0;
+    // Count surviving player units by type
+    const survivors = {};
     for (const u of bUnits) {
         if (!u.alive || u.team !== "player") continue;
-        if (u.typeKey === "warrior") surW++;
-        else if (u.typeKey === "knight") surK++;
-        else if (u.typeKey === "archer") surA++;
+        survivors[u.typeKey] = (survivors[u.typeKey] || 0) + 1;
     }
     // Return survivors to resources
-    resources.warriors += surW;
-    resources.knights += surK;
-    resources.archers += surA;
+    for (const [type, count] of Object.entries(survivors)) {
+        resources[type] = (resources[type] || 0) + count;
+    }
 
     // Show result
     const rm = document.getElementById('battle-result-modal');
@@ -299,10 +300,10 @@ function onBattleEnd() {
     const sub = document.getElementById('result-subtitle');
     const stats = document.getElementById('result-stats');
 
-    const lostW = battlePlayerArmy.warriors - surW;
-    const lostK = battlePlayerArmy.knights - surK;
-    const lostA = battlePlayerArmy.archers - surA;
-    const totalLost = lostW + lostK + lostA;
+    let totalLost = 0;
+    for (const [type, count] of Object.entries(battlePlayerArmy)) {
+        totalLost += count - (survivors[type] || 0);
+    }
 
     if (battleType === 'raid') {
         // === RAID OUTCOMES ===
@@ -401,18 +402,15 @@ document.getElementById('btn-battle-retreat').addEventListener('click', () => {
     if (!bRunning || bBattleOver) return;
     bBattleOver = true; bRunning = false; bWon = false;
     SFX.play('retreat');
-    // Return half of surviving soldiers on retreat
-    let surW = 0, surK = 0, surA = 0;
+    // Return partial surviving soldiers on retreat
+    const survivors = {};
     for (const u of bUnits) {
         if (!u.alive || u.team !== "player") continue;
-        if (u.typeKey === "warrior") surW++;
-        else if (u.typeKey === "knight") surK++;
-        else if (u.typeKey === "archer") surA++;
+        survivors[u.typeKey] = (survivors[u.typeKey] || 0) + 1;
     }
-    // Some units lost during retreat
-    resources.warriors += Math.ceil(surW * 0.7);
-    resources.knights += Math.ceil(surK * 0.7);
-    resources.archers += Math.ceil(surA * 0.7);
+    for (const [type, count] of Object.entries(survivors)) {
+        resources[type] = (resources[type] || 0) + Math.ceil(count * 0.7);
+    }
 
     document.getElementById('battle-result-modal').style.display = 'flex';
     document.getElementById('result-title').innerText = "🏃 נסיגה";

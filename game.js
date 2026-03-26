@@ -41,14 +41,40 @@ icons.empty = '🏳️';
 
 // Military config - loaded from DB, these are fallback defaults
 let militaryConfig = [
-    { id: 'swords', category: 'weapon', name: 'חרב', icon: '🗡️', power: 0, cost: { steel: 2 }, sort_order: 1 },
-    { id: 'armors', category: 'weapon', name: 'שריון', icon: '🦺', power: 0, cost: { steel: 2 }, sort_order: 2 },
-    { id: 'shields', category: 'weapon', name: 'מגן', icon: '💠', power: 0, cost: { steel: 4 }, sort_order: 3 },
-    { id: 'bows', category: 'weapon', name: 'קשת (נשק)', icon: '🏹', power: 0, cost: { plank: 3, woolThread: 1 }, sort_order: 4 },
-    { id: 'horses', category: 'weapon', name: 'סוס', icon: '🐎', power: 0, cost: { bread: 5 }, sort_order: 5 },
-    { id: 'archers', category: 'unit', name: 'קשת', icon: '🎯', power: 1, cost: { people: 1, bows: 1 }, sort_order: 10, hp: 8, atk: 3, rate: 1.5, range_m: 10, speed: 1.2, accuracy: 0.85, armor: 5, penetration: 10, is_ranged: true, shape: 'triangle', color: '#6ff0b0' },
-    { id: 'warriors', category: 'unit', name: 'לוחם', icon: '⚔️', power: 2, cost: { people: 1, swords: 1, armors: 1 }, sort_order: 11, hp: 10, atk: 2, rate: 1.0, range_m: 1, speed: 1.0, accuracy: 0.90, armor: 10, penetration: 0, is_ranged: false, shape: 'circle', color: '#6aa7ff' },
-    { id: 'knights', category: 'unit', name: 'אביר', icon: '🏇', power: 3, cost: { people: 1, swords: 1, armors: 1, shields: 1, horses: 1 }, sort_order: 12, hp: 20, atk: 5, rate: 1.2, range_m: 2, speed: 2.2, accuracy: 0.80, armor: 20, penetration: 0, is_ranged: false, shape: 'square', color: '#9aa7ff' },
+    // === Weapons (כלי נשק) ===
+    { id: 'woodSword', category: 'weapon', name: 'חרב עץ', icon: '🗡️', power: 0, cost: { plank: 2 }, sort_order: 1 },
+    { id: 'ironSword', category: 'weapon', name: 'חרב ברזל', icon: '🗡️', power: 0, cost: { steel: 2, leather: 1 }, sort_order: 2 },
+    { id: 'steelSword', category: 'weapon', name: 'חרב פלדה', icon: '🗡️', power: 0, cost: { steelIngot: 2, leather: 1 }, sort_order: 3 },
+    { id: 'nickelSword', category: 'weapon', name: 'חרב ניקל', icon: '🗡️', power: 0, cost: { nickelSteel: 2, leather: 1 }, sort_order: 4 },
+    { id: 'woodBow', category: 'weapon', name: 'קשת עץ', icon: '🏹', power: 0, cost: { plank: 3, woolThread: 1 }, sort_order: 5 },
+    { id: 'longBow', category: 'weapon', name: 'קשת ארוכה', icon: '🏹', power: 0, cost: { plank: 5, steel: 2, woolThread: 2 }, sort_order: 6 },
+    { id: 'advBow', category: 'weapon', name: 'קשת מתקדמת', icon: '🏹', power: 0, cost: { plank: 8, steelIngot: 3, woolThread: 2 }, sort_order: 7 },
+    { id: 'crossbow', category: 'weapon', name: 'קשת צולבת', icon: '🏹', power: 0, cost: { nickelSteel: 3, woolThread: 2 }, sort_order: 8 },
+    { id: 'horses', category: 'weapon', name: 'סוס', icon: '🐎', power: 0, cost: { bread: 5 }, sort_order: 9 },
+    // === Armor (שריונות) ===
+    { id: 'leatherArmor', category: 'armor', name: 'שריון עור', icon: '🦺', power: 0, cost: { leather: 3 }, sort_order: 20 },
+    { id: 'advLeatherArmor', category: 'armor', name: 'שריון עור מתקדם', icon: '🦺', power: 0, cost: { leather: 6, steelIngot: 2 }, sort_order: 21 },
+    { id: 'ironArmor', category: 'armor', name: 'שריון ברזל', icon: '🛡️', power: 0, cost: { steel: 3 }, sort_order: 22 },
+    { id: 'steelArmor', category: 'armor', name: 'שריון פלדה', icon: '🛡️', power: 0, cost: { steelIngot: 3 }, sort_order: 23 },
+    { id: 'nickelArmor', category: 'armor', name: 'שריון ניקל', icon: '🛡️', power: 0, cost: { nickelSteel: 3 }, sort_order: 24 },
+    { id: 'steelShield', category: 'armor', name: 'מגן פלדה', icon: '🛡️', power: 0, cost: { steelIngot: 4 }, sort_order: 25 },
+    { id: 'nickelShield', category: 'armor', name: 'מגן ניקל', icon: '🛡️', power: 0, cost: { nickelSteel: 4 }, sort_order: 26 },
+    // === Units - Ground (לוחמי קרקע) ===
+    { id: 'scout', category: 'unit', name: 'טירון', icon: '⚔️', power: 1, cost: { people: 1, woodSword: 1, leatherArmor: 1 }, sort_order: 100, hp: 10, atk: 2, rate: 1, range_m: 1, speed: 1, accuracy: 0.75, armor: 5, penetration: 0, is_ranged: false, shape: 'circle', color: '#ffffff' },
+    { id: 'fighter', category: 'unit', name: 'לוחם', icon: '⚔️', power: 6, cost: { people: 1, ironSword: 1, ironArmor: 1 }, sort_order: 101, hp: 20, atk: 4, rate: 1, range_m: 1, speed: 1.1, accuracy: 0.80, armor: 10, penetration: 5, is_ranged: false, shape: 'circle', color: '#40c070' },
+    { id: 'vetFighter', category: 'unit', name: 'לוחם מנוסה', icon: '⚔️', power: 14, cost: { people: 1, steelSword: 1, steelArmor: 1 }, sort_order: 102, hp: 30, atk: 6, rate: 0.9, range_m: 1, speed: 1.2, accuracy: 0.85, armor: 20, penetration: 8, is_ranged: false, shape: 'circle', color: '#4090ff' },
+    { id: 'eliteFighter', category: 'unit', name: 'לוחם עילית', icon: '⚔️', power: 32, cost: { people: 1, nickelSword: 1, nickelArmor: 1 }, sort_order: 103, hp: 40, atk: 8, rate: 0.8, range_m: 1, speed: 1.4, accuracy: 0.90, armor: 40, penetration: 15, is_ranged: false, shape: 'circle', color: '#e04040' },
+    { id: 'tank', category: 'unit', name: 'משוריין', icon: '🛡️', power: 16, cost: { people: 1, steelSword: 1, steelArmor: 1, steelShield: 1 }, sort_order: 104, hp: 60, atk: 3, rate: 1.6, range_m: 1, speed: 0.6, accuracy: 0.80, armor: 30, penetration: 8, is_ranged: false, shape: 'hexagon', color: '#4090ff' },
+    { id: 'eliteTank', category: 'unit', name: 'משוריין עילית', icon: '🛡️', power: 40, cost: { people: 1, nickelSword: 1, nickelArmor: 1, nickelShield: 1 }, sort_order: 105, hp: 100, atk: 5, rate: 1.5, range_m: 1, speed: 0.7, accuracy: 0.80, armor: 60, penetration: 10, is_ranged: false, shape: 'hexagon', color: '#e04040' },
+    // === Units - Archers (קשתים) ===
+    { id: 'archer', category: 'unit', name: 'קשת', icon: '🎯', power: 2, cost: { people: 1, woodBow: 1 }, sort_order: 110, hp: 10, atk: 2, rate: 1.2, range_m: 8, speed: 1.3, accuracy: 0.75, armor: 0, penetration: 5, is_ranged: true, shape: 'triangle', color: '#ffffff' },
+    { id: 'sniper', category: 'unit', name: 'קשת צלף', icon: '🎯', power: 5, cost: { people: 1, longBow: 1, leatherArmor: 1 }, sort_order: 111, hp: 20, atk: 6, rate: 1.4, range_m: 10, speed: 1.4, accuracy: 0.85, armor: 5, penetration: 10, is_ranged: true, shape: 'triangle', color: '#40c070' },
+    { id: 'eliteArcher', category: 'unit', name: 'קשת עילית', icon: '🎯', power: 12, cost: { people: 1, advBow: 1, advLeatherArmor: 1 }, sort_order: 112, hp: 30, atk: 10, rate: 1.2, range_m: 12, speed: 1.5, accuracy: 0.90, armor: 15, penetration: 20, is_ranged: true, shape: 'triangle', color: '#4090ff' },
+    { id: 'crossbowman', category: 'unit', name: 'קלע', icon: '🎯', power: 36, cost: { people: 1, crossbow: 1, advLeatherArmor: 1 }, sort_order: 113, hp: 40, atk: 18, rate: 1.4, range_m: 15, speed: 1.6, accuracy: 0.90, armor: 15, penetration: 35, is_ranged: true, shape: 'triangle', color: '#e04040' },
+    // === Units - Knights (אבירים) ===
+    { id: 'knight', category: 'unit', name: 'אביר', icon: '🏇', power: 8, cost: { people: 1, ironSword: 1, ironArmor: 1, horses: 1 }, sort_order: 120, hp: 30, atk: 5, rate: 1.4, range_m: 2, speed: 2, accuracy: 0.75, armor: 10, penetration: 8, is_ranged: false, shape: 'square', color: '#40c070' },
+    { id: 'vetKnight', category: 'unit', name: 'אביר מנוסה', icon: '🏇', power: 20, cost: { people: 1, steelSword: 1, steelArmor: 1, steelShield: 1, horses: 1 }, sort_order: 121, hp: 50, atk: 7, rate: 1.3, range_m: 2, speed: 2.2, accuracy: 0.80, armor: 20, penetration: 14, is_ranged: false, shape: 'square', color: '#4090ff' },
+    { id: 'eliteKnight', category: 'unit', name: 'אביר עילית', icon: '🏇', power: 50, cost: { people: 1, nickelSword: 1, nickelArmor: 1, nickelShield: 1, horses: 1 }, sort_order: 122, hp: 80, atk: 9, rate: 1.2, range_m: 2, speed: 2.4, accuracy: 0.85, armor: 30, penetration: 20, is_ranged: false, shape: 'square', color: '#e04040' },
 ];
 
 function getMilItem(id) { return militaryConfig.find(m => m.id === id); }
@@ -64,9 +90,8 @@ async function loadMilitaryConfig() {
     } catch (e) { console.warn('Using fallback military config:', e.message); }
 }
 
-// Add military icons
-icons.swords = '🗡️'; icons.armors = '🦺'; icons.shields = '💠'; icons.bows = '🏹'; icons.horses = '🐎';
-icons.archers = '🎯'; icons.warriors = '⚔️'; icons.knights = '🏇';
+// Add military icons dynamically from config
+for (const m of militaryConfig) icons[m.id] = m.icon;
 
 // Craft map: advanced -> { basic, cost }
 const craftMap = {};
@@ -165,8 +190,13 @@ let resources = {
     leather: 0, coal: 0, nickelOre: 0,
     plank: 0, brick: 0, bread: 0, cloth: 0, steel: 0,
     woolThread: 0, carbon: 0, steelIngot: 0, nickelSteel: 0,
-    people: 0, swords: 0, armors: 0, shields: 0, bows: 0, horses: 0,
-    archers: 0, warriors: 0, knights: 0
+    people: 0,
+    woodSword: 0, ironSword: 0, steelSword: 0, nickelSword: 0,
+    woodBow: 0, longBow: 0, advBow: 0, crossbow: 0, horses: 0,
+    leatherArmor: 0, advLeatherArmor: 0, ironArmor: 0, steelArmor: 0, nickelArmor: 0, steelShield: 0, nickelShield: 0,
+    scout: 0, fighter: 0, vetFighter: 0, eliteFighter: 0, tank: 0, eliteTank: 0,
+    archer: 0, sniper: 0, eliteArcher: 0, crossbowman: 0,
+    knight: 0, vetKnight: 0, eliteKnight: 0
 };
 
 let townHallLevel = 1, libraryLevel = 1;
@@ -182,8 +212,8 @@ let tiles = [
 ];
 
 // Enemy army for battle
-let pendingEnemyArmy = { warriors: 0, knights: 0, archers: 0 };
-let battlePlayerArmy = { warriors: 0, knights: 0, archers: 0 };
+let pendingEnemyArmy = {};
+let battlePlayerArmy = {};
 let battleType = 'land';
 let raidEnemyCount = 0;
 
@@ -214,7 +244,11 @@ function getPlayerPower() {
     for (const u of units) power += (resources[u.id] || 0) * (u.power || 0);
     return power;
 }
-function getPopulation() { return resources.people + resources.archers + resources.warriors + resources.knights; }
+function getPopulation() {
+    let pop = resources.people;
+    for (const m of militaryConfig) { if (m.category === 'unit') pop += (resources[m.id] || 0); }
+    return pop;
+}
 
 // Rarity badge HTML
 function rarityBadge(rarityKey) {
@@ -285,7 +319,7 @@ function updateUI() {
     const milModal = document.getElementById('militaryModal');
     if (milModal && milModal.style.display !== 'none') {
         const mg = document.getElementById('military-grid');
-        const totalSoldiers = resources.archers + resources.warriors + resources.knights;
+        const totalSoldiers = militaryConfig.filter(m => m.category === 'unit').reduce((s, m) => s + (resources[m.id] || 0), 0);
         const maxSol = MAX_SOLDIERS;
         const soldierCapFull = totalSoldiers >= maxSol;
         const availPeople = resources.people;

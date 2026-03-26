@@ -138,7 +138,9 @@ function craft(advType, mode, event) {
 }
 
 const MAX_SOLDIERS = 10;
-function getTotalSoldiers() { return resources.archers + resources.warriors + resources.knights; }
+function getTotalSoldiers() {
+    return militaryConfig.filter(m => m.category === 'unit').reduce((s, m) => s + (resources[m.id] || 0), 0);
+}
 
 function craftMilitary(type, event) {
     vibe();
@@ -237,7 +239,6 @@ function handleRoll11(log) {
 // Calculate army power using DB config
 function getArmyPower(army) {
     let power = 0;
-    const unitMap = { warriors: 'warriors', knights: 'knights', archers: 'archers' };
     for (const [key, count] of Object.entries(army)) {
         const cfg = militaryConfig.find(m => m.id === key);
         power += count * (cfg ? (cfg.power || 0) : 1);
@@ -249,13 +250,26 @@ function getArmyPower(army) {
 function generateEnemyArmy() {
     const maxEnemies = Math.min(Math.max(1, discoveredTilesCount), 10);
     const totalEnemies = Math.floor(Math.random() * maxEnemies) + 1;
-    const types = ['warriors', 'knights', 'archers'];
-    const army = { warriors: 0, knights: 0, archers: 0 };
+    const unitTypes = militaryConfig.filter(m => m.category === 'unit').map(m => m.id);
+    const army = {};
+    for (const t of unitTypes) army[t] = 0;
     for (let i = 0; i < totalEnemies; i++) {
-        army[types[Math.floor(Math.random() * types.length)]]++;
+        army[unitTypes[Math.floor(Math.random() * unitTypes.length)]]++;
     }
-    if (army.warriors + army.knights + army.archers === 0) army.warriors = 1;
-    return { army, total: totalEnemies };
+    // Ensure at least 1 unit
+    const total = Object.values(army).reduce((a, b) => a + b, 0);
+    if (total === 0) army[unitTypes[0]] = 1;
+    return { army, total: Math.max(total, 1) };
+}
+
+function formatArmyHTML(army) {
+    let parts = [];
+    for (const [id, count] of Object.entries(army)) {
+        if (count <= 0) continue;
+        const cfg = getMilItem(id);
+        if (cfg) parts.push(`${cfg.icon} ${count} ${cfg.name}`);
+    }
+    return parts.join('<br>') || 'אין יחידות';
 }
 
 function addEmptyTile() {
@@ -303,9 +317,9 @@ function initiateCombat() {
     const eInfo = document.getElementById('combat-enemy-info');
     document.querySelector('#combatModal .modal-title').innerText = '⚔️ אויבים לפניך!';
     document.querySelector('#combatModal .modal-content p').innerText = 'מצאת אדמה חדשה, אך היא מוחזקת על ידי אויבים!';
-    pInfo.innerHTML = `⚔️ ${resources.warriors} לוחמים<br>🏇 ${resources.knights} אבירים<br>🎯 ${resources.archers} קשתים<br><strong>כוח: ${getPlayerPower()}</strong>`;
+    pInfo.innerHTML = formatArmyHTML(Object.fromEntries(militaryConfig.filter(m=>m.category==='unit').map(m=>[m.id, resources[m.id]||0]))) + `<br><strong>כוח: ${getPlayerPower()}</strong>`;
     const ePower = getArmyPower(pendingEnemyArmy);
-    eInfo.innerHTML = `⚔️ ${pendingEnemyArmy.warriors} לוחמים<br>🏇 ${pendingEnemyArmy.knights} אבירים<br>🎯 ${pendingEnemyArmy.archers} קשתים<br><strong>כוח: ${ePower}</strong>`;
+    eInfo.innerHTML = formatArmyHTML(pendingEnemyArmy) + `<br><strong>כוח: ${ePower}</strong>`;
     const atkBtn = document.getElementById('btn-combat-attack');
     if (getPlayerPower() === 0) { atkBtn.disabled = true; atkBtn.innerText = "אמן חיילים!"; atkBtn.style.background = 'rgba(255,255,255,0.1)'; }
     else { atkBtn.disabled = false; atkBtn.innerText = "הסתער!"; atkBtn.style.background = ''; }
@@ -323,9 +337,9 @@ function initiateRaid() {
     const eInfo = document.getElementById('combat-enemy-info');
     document.querySelector('#combatModal .modal-title').innerText = '🚨 פשיטה על הבסיס!';
     document.querySelector('#combatModal .modal-content p').innerText = 'אויבים תוקפים את הבסיס שלך! הגן את המשאבים!';
-    pInfo.innerHTML = `⚔️ ${resources.warriors} לוחמים<br>🏇 ${resources.knights} אבירים<br>🎯 ${resources.archers} קשתים<br><strong>כוח: ${getPlayerPower()}</strong>`;
+    pInfo.innerHTML = formatArmyHTML(Object.fromEntries(militaryConfig.filter(m=>m.category==='unit').map(m=>[m.id, resources[m.id]||0]))) + `<br><strong>כוח: ${getPlayerPower()}</strong>`;
     const ePower = getArmyPower(pendingEnemyArmy);
-    eInfo.innerHTML = `⚔️ ${pendingEnemyArmy.warriors} לוחמים<br>🏇 ${pendingEnemyArmy.knights} אבירים<br>🎯 ${pendingEnemyArmy.archers} קשתים<br><strong>כוח: ${ePower}</strong>`;
+    eInfo.innerHTML = formatArmyHTML(pendingEnemyArmy) + `<br><strong>כוח: ${ePower}</strong>`;
     const atkBtn = document.getElementById('btn-combat-attack');
     if (getPlayerPower() === 0) { atkBtn.disabled = true; atkBtn.innerText = "אמן חיילים!"; atkBtn.style.background = 'rgba(255,255,255,0.1)'; }
     else { atkBtn.disabled = false; atkBtn.innerText = "הגן!"; atkBtn.style.background = ''; }
