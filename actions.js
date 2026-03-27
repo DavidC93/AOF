@@ -51,16 +51,17 @@ function rollDice() {
         else if (sum === 11) { handleRoll11(log); }
         else if (sum === 12) { log.innerText = `יצא 12! מצאת תיבת אוצר!`; isPausedForEvent = true; openModal('chestModal'); }
         else {
-            let produced = [];
+            const merged = {};
             tiles.forEach(t => {
                 if (t.type !== 'empty' && BUILDINGS[t.type] && t.number === sum) {
                     const items = produceFromBuilding(t);
                     items.forEach(p => {
                         resources[p.res] += p.amt;
-                        produced.push(`${p.amt} ${icons[p.res]} ${basicRes[p.res] ? basicRes[p.res].name : p.res}`);
+                        merged[p.res] = (merged[p.res] || 0) + p.amt;
                     });
                 }
             });
+            const produced = Object.entries(merged).map(([res, amt]) => `${amt} ${icons[res]} ${basicRes[res] ? basicRes[res].name : res}`);
             if (produced.length > 0) { log.innerText = `הופקו: ${produced.join(', ')}`; SFX.play('collect'); }
             else log.innerText = "לא הופקו משאבים הפעם.";
         }
