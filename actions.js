@@ -35,7 +35,7 @@ function stopAutoRoll() { clearInterval(autoRollTimer); autoRollTimer = null; }
 
 function rollDice() {
     const display = document.getElementById('dice-result'), log = document.getElementById('action-log');
-    btnRoll.disabled = true; display.classList.add('rolling'); log.innerText = "זורק..."; SFX.play('dice');
+    btnRoll.disabled = true; display.classList.add('rolling'); log.innerHTML = "זורק..."; SFX.play('dice');
     setTimeout(() => {
         display.classList.remove('rolling');
         let sum;
@@ -44,12 +44,12 @@ function rollDice() {
         display.innerText = `🎲 ${sum}`;
         if (sum === 2) {
             let space = resources.maxPop - getPopulation();
-            if (space > 0) { let r = Math.min(townHallLevel, space); resources.people += r; log.innerText = `יצא 2! העירייה גייסה ${r} 👨.`; SFX.play('collect'); }
-            else log.innerText = `יצא 2! האוכלוסייה מלאה (מקס ${resources.maxPop}).`;
-        } else if (sum === 3) { resources.research += libraryLevel; log.innerText = `יצא 3! הספרייה ייצרה ${libraryLevel} 🧪.`; SFX.play('collect'); }
+            if (space > 0) { let r = Math.min(townHallLevel, space); resources.people += r; log.innerHTML = `יצא 2! העירייה גייסה <span class="log-badge">${r} 👨 <span class="log-name">(אדם)</span></span>`; SFX.play('collect'); }
+            else log.innerHTML = `יצא 2! האוכלוסייה מלאה (מקס ${resources.maxPop}).`;
+        } else if (sum === 3) { resources.research += libraryLevel; log.innerHTML = `יצא 3! הספרייה ייצרה <span class="log-badge">${libraryLevel} 🧪 <span class="log-name">(מחקר)</span></span>`; SFX.play('collect'); }
         else if (sum === 10) { handleRoll10(log); }
         else if (sum === 11) { handleRoll11(log); }
-        else if (sum === 12) { log.innerText = `יצא 12! מצאת תיבת אוצר!`; isPausedForEvent = true; openModal('chestModal'); }
+        else if (sum === 12) { log.innerHTML = `יצא 12! מצאת תיבת אוצר! 🎁`; isPausedForEvent = true; openModal('chestModal'); }
         else {
             const merged = {};
             tiles.forEach(t => {
@@ -61,9 +61,12 @@ function rollDice() {
                     });
                 }
             });
-            const produced = Object.entries(merged).map(([res, amt]) => `${amt} ${icons[res]} ${basicRes[res] ? basicRes[res].name : res}`);
-            if (produced.length > 0) { log.innerText = `הופקו: ${produced.join(', ')}`; SFX.play('collect'); }
-            else log.innerText = "לא הופקו משאבים הפעם.";
+            const produced = Object.entries(merged).map(([res, amt]) => {
+                const name = basicRes[res] ? basicRes[res].name : res;
+                return `<span class="log-badge">${amt} ${icons[res]} <span class="log-name">(${name})</span></span>`;
+            });
+            if (produced.length > 0) { log.innerHTML = `הופקו: ${produced.join('')}`; SFX.play('collect'); }
+            else log.innerHTML = `לא הופקו משאבים הפעם.`;
         }
         btnRoll.disabled = false; updateUI();
     }, 300);
@@ -227,14 +230,14 @@ function upgradeTile(i, event) {
 
 // Roll 10 handler - always enemies (land discovery)
 function handleRoll10(log) {
-    log.innerText = "10! התגלו אויבים...";
+    log.innerHTML = "10! התגלו אויבים... ⚔️";
     isPausedForEvent = true;
     initiateCombat();
 }
 
 // Roll 11 handler - base raid
 function handleRoll11(log) {
-    log.innerText = "11! פשיטה על הבסיס! ⚔️";
+    log.innerHTML = "11! פשיטה על הבסיס! 🚨";
     isPausedForEvent = true;
     initiateRaid();
 }
@@ -299,7 +302,7 @@ function openChest() {
         anim.innerText = (Math.floor(Math.random() * 100) + 10) + "🪙"; ticks++; SFX.play('chest');
         if (ticks > 20) {
             clearInterval(iv); anim.innerText = final + "🪙"; anim.classList.add('chest-success'); resources.coins += final;
-            document.getElementById('action-log').innerText = `פתחת תיבה וקיבלת ${final}🪙!`; document.getElementById('btn-close-chest').style.display = 'inline-block';
+            document.getElementById('action-log').innerHTML = `פתחת תיבה וקיבלת <span class="log-badge">${final} 🪙 <span class="log-name">(מטבעות)</span></span>`; document.getElementById('btn-close-chest').style.display = 'inline-block';
             SFX.play('chestOpen'); updateUI();
         }
     }, 50);
@@ -367,9 +370,9 @@ function retreat() {
                 losses.push(`${actualLoss} ${rInfo.icon} ${rInfo.name}`);
             }
         }
-        document.getElementById('action-log').innerText = `נסגת מהפשיטה. משאבים נבזזו: ${losses.join(', ')}`;
+        document.getElementById('action-log').innerHTML = `נסגת מהפשיטה. משאבים נבזזו: ${losses.join(', ')}`;
     } else {
-        document.getElementById('action-log').innerText = "נסגת מהקרב.";
+        document.getElementById('action-log').innerHTML = "נסגת מהקרב.";
     }
     closeModal('combatModal'); isPausedForEvent = false; updateUI();
 }
