@@ -163,24 +163,21 @@ function produceFromBuilding(tile) {
     const tier = getProductionTier(tile.type, tile.level);
     if (!tier) return [];
     const total = tile.level;
-    const produced = [];
-    let remaining = total;
+    const produced = {};
 
-    // Sort by pct descending, distribute
-    const sorted = [...tier.resources].sort((a, b) => b.pct - a.pct);
-    for (let i = 0; i < sorted.length; i++) {
-        const r = sorted[i];
-        if (i === sorted.length - 1) {
-            // Last one gets remaining
-            const amt = Math.max(remaining > 0 ? 1 : 0, remaining);
-            if (amt > 0) produced.push({ res: r.res, amt });
-        } else {
-            const amt = Math.max(1, Math.round(total * r.pct / 100));
-            produced.push({ res: r.res, amt: Math.min(amt, remaining) });
-            remaining -= Math.min(amt, remaining);
+    // Each unit rolls independently against the percentage table
+    for (let i = 0; i < total; i++) {
+        const roll = Math.random() * 100;
+        let cumulative = 0;
+        for (const r of tier.resources) {
+            cumulative += r.pct;
+            if (roll < cumulative) {
+                produced[r.res] = (produced[r.res] || 0) + 1;
+                break;
+            }
         }
     }
-    return produced;
+    return Object.entries(produced).map(([res, amt]) => ({ res, amt }));
 }
 
 // === Game State ===
@@ -330,7 +327,18 @@ function updateUI() {
     </div>`;
 
         const weapons = militaryConfig.filter(m => m.category === 'weapon');
+        const armors = militaryConfig.filter(m => m.category === 'armor');
         const units = militaryConfig.filter(m => m.category === 'unit');
+
+        // Helper: resolve item name for cost display
+        function milCostName(res) {
+            if (res === 'people') return { icon: '👨', name: 'אדם' };
+            if (basicRes[res]) return basicRes[res];
+            if (advRes[res]) return advRes[res];
+            const milItem = getMilItem(res);
+            if (milItem) return { icon: milItem.icon, name: milItem.name };
+            return { icon: icons[res] || '?', name: res };
+        }
 
         // Category: Weapons
         milHTML += `<div style="grid-column:1/-1;font-size:13px;font-weight:bold;color:var(--muted);padding:8px 0 2px;border-top:1px solid var(--glass2)">🗡️ כלי נשק</div>`;
@@ -339,7 +347,20 @@ function updateUI() {
             const canAfford = costEntries.every(([res, amt]) => resources[res] >= amt);
             const costStr = costEntries.map(([res, amt]) => {
                 const have = resources[res] >= amt;
-                const ri = basicRes[res] || advRes[res] || { icon: icons[res] || '?', name: res };
+                const ri = milCostName(res);
+                return `<span class="${have ? '' : 'missing-res'}">${amt}</span> ${ri.icon} ${ri.name}`;
+            }).join(', ');
+            milHTML += `<div class="craft-card"><div style="font-size:24px">${item.icon}</div><div style="color:var(--text)"><strong>${item.name}</strong></div><div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources[item.id] || 0}</div><div style="font-size:11px;color:var(--muted)">(${costStr})</div><div class="craft-actions"><button class="craft-btn ${canAfford ? '' : 'disabled-btn'}" onclick="craftMilitary('${item.id}',event)">צור</button></div></div>`;
+        }
+
+        // Category: Armor
+        milHTML += `<div style="grid-column:1/-1;font-size:13px;font-weight:bold;color:var(--muted);padding:8px 0 2px;border-top:1px solid var(--glass2)">🛡️ שריונות ומגנים</div>`;
+        for (const item of armors) {
+            const costEntries = Object.entries(item.cost);
+            const canAfford = costEntries.every(([res, amt]) => resources[res] >= amt);
+            const costStr = costEntries.map(([res, amt]) => {
+                const have = resources[res] >= amt;
+                const ri = milCostName(res);
                 return `<span class="${have ? '' : 'missing-res'}">${amt}</span> ${ri.icon} ${ri.name}`;
             }).join(', ');
             milHTML += `<div class="craft-card"><div style="font-size:24px">${item.icon}</div><div style="color:var(--text)"><strong>${item.name}</strong></div><div style="font-size:12px;color:var(--gold);font-weight:bold">ברשותך: ${resources[item.id] || 0}</div><div style="font-size:11px;color:var(--muted)">(${costStr})</div><div class="craft-actions"><button class="craft-btn ${canAfford ? '' : 'disabled-btn'}" onclick="craftMilitary('${item.id}',event)">צור</button></div></div>`;
@@ -352,8 +373,8 @@ function updateUI() {
             const canAfford = costEntries.every(([res, amt]) => resources[res] >= amt) && !soldierCapFull;
             const costStr = costEntries.map(([res, amt]) => {
                 const have = resources[res] >= amt;
-                const ri = basicRes[res] || advRes[res] || { icon: icons[res] || '👨', name: res === 'people' ? 'אדם' : res };
-                return `<span class="${have ? '' : 'missing-res'}">${amt}</span> ${ri.icon || icons[res]} ${ri.name}`;
+                const ri = milCostName(res);
+                return `<span class="${have ? '' : 'missing-res'}">${amt}</span> ${ri.icon} ${ri.name}`;
             }).join(', ');
             milHTML += `<div class="craft-card"><div style="font-size:24px">${item.icon}</div><div style="color:var(--text)"><strong>${item.name}</strong> (כוח ${item.power})</div>
         ${item.hp > 0 ? `<div style="font-size:10px;color:var(--muted);display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin:2px 0"><span title="חיים">❤️${item.hp}</span><span title="התקפה">⚔️${item.atk}</span><span title="מהירות">💨${Number(item.speed || 1).toFixed(1)}</span><span title="טווח">📏${item.range_m}</span><span title="דיוק">🎯${Math.round((item.accuracy || 0.9) * 100)}%</span><span title="שריון">🛡️${item.armor || 0}</span></div>` : ''}

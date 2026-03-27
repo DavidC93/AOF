@@ -157,8 +157,10 @@ function craftMilitary(type, event) {
     const costEntries = Object.entries(item.cost);
     for (const [res, amt] of costEntries) {
         if (resources[res] < amt) {
-            const ri = basicRes[res] || advRes[res] || { icon: icons[res] || '?', name: res === 'people' ? 'אדם' : res };
-            missing.push(`${amt - resources[res]} ${ri.icon || icons[res]} ${ri.name}`);
+            let ri = basicRes[res] || advRes[res];
+            if (!ri && res === 'people') ri = { icon: '👨', name: 'אדם' };
+            if (!ri) { const mi = getMilItem(res); ri = mi ? { icon: mi.icon, name: mi.name } : { icon: icons[res] || '?', name: res }; }
+            missing.push(`${amt - resources[res]} ${ri.icon} ${ri.name}`);
         }
     }
 
