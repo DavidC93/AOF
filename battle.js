@@ -38,6 +38,7 @@ function getUnitStats() {
 let bUnits = [], bProjectiles = [], bEffects = [], bFloaters = [];
 let bRunning = false, bPaused = false, bLastT = 0, bBattleOver = false;
 let bCanvas, bCtx, bWon = false;
+let bCachedStats = null;
 
 function bRand(a, b) { return Math.random() * (b - a) + a }
 function bClamp(v, a, b) { return Math.max(a, Math.min(b, v)) }
@@ -45,13 +46,15 @@ function bDist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y) }
 function bRound1(x) { return Math.round(x * 10) / 10 }
 
 function bMakeUnit(typeKey, team, x, y) {
-    const UNIT_STATS = getUnitStats();
+    const UNIT_STATS = bCachedStats || getUnitStats();
     const t = UNIT_STATS[typeKey];
+    if (!t) { console.warn('Unknown unit type:', typeKey); return null; }
     return {
         id: String(Math.random()).slice(2), typeKey, team, x, y, r: 14,
         hp: t.hp, maxHp: t.hp, atk: t.atk, rate: t.rate, range: t.range_m * METER_PX,
         speedStat: t.speedStat, moveSpeed: BASE_MOVE_PX * t.speedStat, acc: t.acc, armor: t.armor, pen: t.pen || 0,
         cooldown: 0, alive: true, color: t.color, shape: t.shape, projectile: !!t.projectile,
+        label: t.name ? t.name[0] : '?',
         meleeAnimT: 0, meleeAnimDur: 0.16, lungeDx: 0, lungeDy: 0, hitFlashT: 0
     };
 }
@@ -71,7 +74,8 @@ function bSpawnTeam(team, counts) {
     const baseY = team === "player" ? (h - 90) : 90;
     for (let i = 0; i < order.length; i++) {
         const t = total === 1 ? 0.5 : (i / (total - 1));
-        bUnits.push(bMakeUnit(order[i], team, pad + t * uw + bRand(-10, 10), baseY + bRand(-10, 10)));
+        const unit = bMakeUnit(order[i], team, pad + t * uw + bRand(-10, 10), baseY + bRand(-10, 10));
+        if (unit) bUnits.push(unit);
     }
 }
 
@@ -199,9 +203,7 @@ function bDrawUnit(u) {
     // Letter
     bCtx.fillStyle = u.team === "enemy" ? "rgba(255,120,120,.85)" : "rgba(255,255,255,.70)"; bCtx.beginPath(); bCtx.arc(0, 0, 8.5, 0, Math.PI * 2); bCtx.fill();
     bCtx.fillStyle = "rgba(0,0,0,.70)"; bCtx.font = "800 12px system-ui"; bCtx.textAlign = "center"; bCtx.textBaseline = "middle";
-    const UNIT_STATS = getUnitStats();
-    const label = (UNIT_STATS[u.typeKey] && UNIT_STATS[u.typeKey].name) ? UNIT_STATS[u.typeKey].name[0] : '?';
-    bCtx.fillText(label, 0, 0.5);
+    bCtx.fillText(u.label || '?', 0, 0.5);
     // Team dot
     bCtx.fillStyle = u.team === "enemy" ? "rgba(255,80,80,1)" : "rgba(190,245,255,1)"; bCtx.beginPath(); bCtx.arc(0, u.r + 9, 4, 0, Math.PI * 2); bCtx.fill();
     bCtx.restore();
@@ -270,6 +272,7 @@ function startBattleSimulation() {
     bUnits = []; bProjectiles = []; bEffects = []; bFloaters = [];
     bRunning = true; bPaused = false; bLastT = 0; bBattleOver = false; bWon = false;
     bTimeScale = 1; bEnding = false; bEndTimer = 0;
+    bCachedStats = getUnitStats();
 
     bSpawnTeam("enemy", pendingEnemyArmy);
     bSpawnTeam("player", battlePlayerArmy);
@@ -294,37 +297,72 @@ function onBattleEnd() {
         resources[type] = (resources[type] || 0) + count;
     }
 
+    const totalSurvived = Object.values(survivors).reduce((a, b) => a + b, 0);
+    let totalLost = 0;
+    for (const [type, count] of Object.entries(battlePlayerArmy)) {
+        totalLost += count - (survivors[type] || 0);
+    }
+
     // Show result
     const rm = document.getElementById('battle-result-modal');
     const title = document.getElementById('result-title');
     const sub = document.getElementById('result-subtitle');
     const stats = document.getElementById('result-stats');
 
-    let totalLost = 0;
-    for (const [type, count] of Object.entries(battlePlayerArmy)) {
-        totalLost += count - (survivors[type] || 0);
+    // Build survivor display string
+    let survivorHTML = '';
+    for (const [type, count] of Object.entries(survivors)) {
+        if (count <= 0) continue;
+        const cfg = getMilItem(type);
+        if (cfg) survivorHTML += `<div class="result-stat"><div class="result-stat-label">${cfg.icon} ${cfg.name}</div><div class="result-stat-value" style="color:var(--green)">${count}</div></div>`;
     }
+    if (!survivorHTML) survivorHTML = '<div class="result-stat"><div class="result-stat-label">שרדו</div><div class="result-stat-value" style="color:var(--red)">0</div></div>';
 
     if (battleType === 'raid') {
         // === RAID OUTCOMES ===
         if (bWon) {
-            // Win raid: get random war items, 1 to raidEnemyCount
-            const lootTypes = ['swords', 'armors', 'shields', 'bows', 'horses'];
-            const lootNames = { swords: '🗡️ חרב', armors: '🦺 שריון', shields: '💠 מגן', bows: '🏹 קשת', horses: '🐎 סוס' };
+            // Win raid: drop loot based on enemy types (rarity-matched)
+            const lootPool = militaryConfig.filter(m => m.category === 'weapon' || m.category === 'armor');
+            // Determine enemy rarity tiers from pendingEnemyArmy
+            const enemyRarities = new Set();
+            for (const [id, count] of Object.entries(pendingEnemyArmy)) {
+                if (count > 0) {
+                    const cfg = getMilItem(id);
+                    if (cfg && cfg.sort_order >= 100) {
+                        // Map unit power tier to loot tier
+                        const power = cfg.power || 1;
+                        if (power <= 5) enemyRarities.add('common');
+                        if (power > 3 && power <= 15) enemyRarities.add('uncommon');
+                        if (power > 10 && power <= 35) enemyRarities.add('rare');
+                        if (power > 30) enemyRarities.add('epic');
+                    }
+                }
+            }
+            // Map sort_order to rarity tier for weapons/armor
+            function getLootTier(item) {
+                const so = item.sort_order;
+                if (so <= 5 || so === 9 || so === 20) return 'common'; // basic weapons + leather armor
+                if (so === 6 || so === 22) return 'uncommon'; // longBow, ironArmor
+                if (so <= 8 || so <= 25) return 'rare'; // advBow, steelArmor, shields
+                return 'epic';
+            }
+            const eligibleLoot = lootPool.filter(l => enemyRarities.has(getLootTier(l)));
+            const actualPool = eligibleLoot.length > 0 ? eligibleLoot : lootPool.slice(0, 3);
+            
             let lootList = [];
-            const numLootTypes = Math.min(2 + Math.floor(Math.random() * 2), lootTypes.length); // 2-3 item types
-            const shuffled = [...lootTypes].sort(() => Math.random() - 0.5);
-            for (let i = 0; i < numLootTypes; i++) {
-                const type = shuffled[i];
+            const numItems = Math.min(2 + Math.floor(Math.random() * 2), actualPool.length);
+            const shuffled = [...actualPool].sort(() => Math.random() - 0.5);
+            for (let i = 0; i < numItems; i++) {
+                const item = shuffled[i];
                 const amt = Math.floor(Math.random() * raidEnemyCount) + 1;
-                resources[type] += amt;
-                lootList.push(`${amt} ${lootNames[type]}`);
+                resources[item.id] = (resources[item.id] || 0) + amt;
+                lootList.push(`${amt} ${item.icon} ${item.name}`);
             }
             title.innerText = "🛡️ הבסיס הוגן!";
             sub.innerText = "הדפת את הפשיטה ושללת!";
             title.style.color = "var(--green)";
             stats.innerHTML = `
-                <div class="result-stat"><div class="result-stat-label">שרדו</div><div class="result-stat-value" style="color:var(--green)">${surW + surK + surA}</div></div>
+                <div class="result-stat"><div class="result-stat-label">שרדו</div><div class="result-stat-value" style="color:var(--green)">${totalSurvived}</div></div>
                 <div class="result-stat"><div class="result-stat-label">נפלו</div><div class="result-stat-value" style="color:var(--red)">${totalLost}</div></div>
                 <div class="result-stat" style="grid-column:1/-1"><div class="result-stat-label">שלל מלחמה</div><div class="result-stat-value" style="color:var(--gold)">${lootList.join(' • ')}</div></div>
             `;
@@ -349,7 +387,7 @@ function onBattleEnd() {
             sub.innerText = "האויבים בזזו את המשאבים שלך.";
             title.style.color = "var(--red)";
             stats.innerHTML = `
-                <div class="result-stat"><div class="result-stat-label">שרדו</div><div class="result-stat-value" style="color:var(--green)">${surW + surK + surA}</div></div>
+                <div class="result-stat"><div class="result-stat-label">שרדו</div><div class="result-stat-value" style="color:var(--green)">${totalSurvived}</div></div>
                 <div class="result-stat"><div class="result-stat-label">נפלו</div><div class="result-stat-value" style="color:var(--red)">${totalLost}</div></div>
                 <div class="result-stat" style="grid-column:1/-1"><div class="result-stat-label">משאבים שנבזזו</div><div class="result-stat-value" style="color:var(--red)">${losses.length > 0 ? losses.join(' • ') : 'אין משאבים לאבד'}</div></div>
             `;
@@ -357,10 +395,26 @@ function onBattleEnd() {
         }
     } else {
         // === LAND DISCOVERY OUTCOMES ===
+        let lootHTML = '';
         if (bWon) {
             title.innerText = "🏆 ניצחון!";
             sub.innerText = "כבשת את האדמה החדשה!";
             title.style.color = "var(--green)";
+            // Drop loot based on enemy composition
+            const lootPool = militaryConfig.filter(m => m.category === 'weapon' || m.category === 'armor');
+            const totalEnemies = Object.values(pendingEnemyArmy).reduce((a, b) => a + b, 0);
+            const numItems = Math.min(1 + Math.floor(Math.random() * 2), lootPool.length);
+            const shuffled = [...lootPool].sort(() => Math.random() - 0.5);
+            let lootList = [];
+            for (let i = 0; i < numItems; i++) {
+                const item = shuffled[i];
+                const amt = Math.max(1, Math.floor(Math.random() * Math.max(1, totalEnemies / 2)) + 1);
+                resources[item.id] = (resources[item.id] || 0) + amt;
+                lootList.push(`${amt} ${item.icon} ${item.name}`);
+            }
+            if (lootList.length > 0) {
+                lootHTML = `<div class="result-stat" style="grid-column:1/-1"><div class="result-stat-label">שלל מלחמה</div><div class="result-stat-value" style="color:var(--gold)">${lootList.join(' • ')}</div></div>`;
+            }
         } else {
             title.innerText = "💀 תבוסה";
             sub.innerText = "האויב ניצח. האדמה לא נכבשה.";
@@ -368,12 +422,11 @@ function onBattleEnd() {
         }
 
         stats.innerHTML = `
-            <div class="result-stat"><div class="result-stat-label">שרדו</div><div class="result-stat-value" style="color:var(--green)">${surW + surK + surA}</div></div>
+            <div class="result-stat"><div class="result-stat-label">שרדו</div><div class="result-stat-value" style="color:var(--green)">${totalSurvived}</div></div>
             <div class="result-stat"><div class="result-stat-label">נפלו</div><div class="result-stat-value" style="color:var(--red)">${totalLost}</div></div>
-            <div class="result-stat"><div class="result-stat-label">לוחמים ששרדו</div><div class="result-stat-value">⚔️ ${surW}</div></div>
-            <div class="result-stat"><div class="result-stat-label">אבירים ששרדו</div><div class="result-stat-value">🏇 ${surK}</div></div>
-            <div class="result-stat"><div class="result-stat-label">קשתים ששרדו</div><div class="result-stat-value">🎯 ${surA}</div></div>
+            ${survivorHTML}
             <div class="result-stat"><div class="result-stat-label">תוצאה</div><div class="result-stat-value">${bWon ? '✅ ניצחון' : '❌ תבוסה'}</div></div>
+            ${lootHTML}
         `;
 
         if (bWon) { addEmptyTile(); SFX.play('victory'); }
